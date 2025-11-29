@@ -1,0 +1,10 @@
+project_id = "ubzouyvgvbgzssabrors"
+
+[functions.upload-to-r2]
+verify_jwt = true
+
+[functions.detect-token-holdings]
+verify_jwt = false
+
+[functions.paymaster]
+verify_jwt = false
