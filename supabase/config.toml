@@ -1,4 +1,7 @@
-project_id = "ubzouyvgvbgzssabrors"
+project_id = "krajdsugcvwytpsqnbzs"
+
+[functions.generate-presigned-url]
+verify_jwt = false
 
 [functions.upload-to-r2]
 verify_jwt = true
