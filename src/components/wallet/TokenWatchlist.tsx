@@ -12,8 +12,6 @@ interface WatchlistTokenItemProps {
   id: string;
   symbol: string;
   name: string | null;
-  priceAlertUpper: number | null;
-  priceAlertLower: number | null;
   onRemove: (id: string) => void;
 }
 
@@ -21,33 +19,9 @@ function WatchlistTokenItem({
   id,
   symbol,
   name,
-  priceAlertUpper,
-  priceAlertLower,
   onRemove,
 }: WatchlistTokenItemProps) {
   const { data: currentPrice } = useTokenPrice(symbol);
-  const { toast } = useToast();
-
-  // Check price alerts
-  useEffect(() => {
-    if (!currentPrice) return;
-
-    if (priceAlertUpper && currentPrice > priceAlertUpper) {
-      toast({
-        title: `🔔 Cảnh báo giá ${symbol}`,
-        description: `Giá ${symbol} đã vượt $${priceAlertUpper.toLocaleString()}. Giá hiện tại: $${currentPrice.toLocaleString()}`,
-      });
-    }
-
-    if (priceAlertLower && currentPrice < priceAlertLower) {
-      toast({
-        title: `🔔 Cảnh báo giá ${symbol}`,
-        description: `Giá ${symbol} đã giảm xuống dưới $${priceAlertLower.toLocaleString()}. Giá hiện tại: $${currentPrice.toLocaleString()}`,
-      });
-    }
-  }, [currentPrice, priceAlertUpper, priceAlertLower, symbol, toast]);
-
-  const hasAlerts = priceAlertUpper || priceAlertLower;
 
   return (
     <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors">
@@ -56,27 +30,8 @@ function WatchlistTokenItem({
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <p className="font-semibold">{symbol}</p>
-            {hasAlerts && (
-              <Bell className="h-3 w-3 text-primary" />
-            )}
           </div>
           {name && <p className="text-xs text-muted-foreground">{name}</p>}
-          {hasAlerts && (
-            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-              {priceAlertUpper && (
-                <div className="flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3 text-green-500" />
-                  <span>&gt; ${priceAlertUpper.toLocaleString()}</span>
-                </div>
-              )}
-              {priceAlertLower && (
-                <div className="flex items-center gap-1">
-                  <TrendingDown className="h-3 w-3 text-red-500" />
-                  <span>&lt; ${priceAlertLower.toLocaleString()}</span>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
       <div className="text-right flex items-center gap-2">
@@ -151,8 +106,6 @@ export default function TokenWatchlist() {
               id={item.id}
               symbol={item.token_symbol}
               name={item.token_name}
-              priceAlertUpper={item.price_alert_upper}
-              priceAlertLower={item.price_alert_lower}
               onRemove={removeFromWatchlist}
             />
           ))

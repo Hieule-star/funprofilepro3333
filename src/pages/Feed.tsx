@@ -9,7 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 interface PostWithProfile {
   id: string;
   content: string | null;
-  media: any;
+  media_url: string | null;
+  media_type: string | null;
   created_at: string;
   user_id: string;
   profiles: {
@@ -114,10 +115,10 @@ export default function Feed() {
                       likes={0}
                       comments={0}
                       shares={0}
-                      media={Array.isArray(post.media) ? post.media.map((item: any) => ({
-                        type: item.type as 'image' | 'video',
-                        url: item.url
-                      })) : undefined}
+                      media={post.media_url && post.media_type ? [{
+                        type: post.media_type as 'image' | 'video',
+                        url: post.media_url
+                      }] : undefined}
                     />
                   );
                 })

@@ -14,7 +14,7 @@ interface CommentItemProps {
     content: string;
     created_at: string;
     user_id: string;
-    parent_comment_id: string | null;
+    parent_id: string | null;
     profiles: {
       username: string | null;
       avatar_url: string | null;

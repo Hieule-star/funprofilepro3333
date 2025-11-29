@@ -11,7 +11,7 @@ interface CustomToken {
   symbol: string;
   decimals: number;
   logo_url: string | null;
-  chain: string;
+  chain_id: number;
 }
 
 interface WalletContextType {
@@ -23,7 +23,7 @@ interface WalletContextType {
   switchNetwork: (chainId: number) => void;
   disconnect: () => void;
   saveWalletAddress: () => Promise<void>;
-  addCustomToken: (token: Omit<CustomToken, 'id' | 'chain'>) => Promise<void>;
+  addCustomToken: (token: Omit<CustomToken, 'id' | 'chain_id'>) => Promise<void>;
   refreshTokens: () => Promise<void>;
 }
 
@@ -43,30 +43,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!address || !user || !chainId) return;
 
     try {
-      const chainMap: Record<number, 'bnb' | 'ethereum'> = {
-        56: 'bnb',
-        1: 'ethereum',
-      };
-
-      const chain = chainMap[chainId];
-      if (!chain) {
-        toast({
-          title: 'Network not supported',
-          description: 'Please switch to BNB Chain or Ethereum',
-          variant: 'destructive',
-        });
-        return;
-      }
-
       const { error } = await supabase.from('wallets').upsert(
         {
           user_id: user.id,
-          chain,
+          chain_id: chainId,
           address: address.toLowerCase(),
           is_primary: true,
         },
         {
-          onConflict: 'user_id,chain,address',
+          onConflict: 'user_id,chain_id,address',
         }
       );
 
@@ -75,7 +60,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsSaved(true);
       toast({
         title: 'Wallet connected',
-        description: `Successfully connected to ${chain.toUpperCase()}`,
+        description: `Successfully connected`,
       });
     } catch (error) {
       console.error('Error saving wallet:', error);
@@ -111,18 +96,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     if (!address || !chainId || !user) return;
 
     try {
-      const chainMap: Record<number, 'bnb' | 'ethereum'> = {
-        56: 'bnb',
-        1: 'ethereum',
-      };
-      const chainName = chainMap[chainId];
-      if (!chainName) return;
-
       const { data, error } = await supabase
         .from('custom_tokens')
         .select('*')
         .eq('user_id', user.id)
-        .eq('chain', chainName);
+        .eq('chain_id', chainId);
 
       if (error) throw error;
       if (data) {
@@ -133,7 +111,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addCustomToken = async (token: Omit<CustomToken, 'id' | 'chain'>) => {
+  const addCustomToken = async (token: Omit<CustomToken, 'id' | 'chain_id'>) => {
     console.log('[WalletContext] addCustomToken called:', {
       address,
       chainId,
@@ -151,15 +129,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const chainMap: Record<number, 'bnb' | 'ethereum'> = {
-        56: 'bnb',
-        1: 'ethereum',
-      };
-      const chainName = chainMap[chainId];
-      console.log('[WalletContext] Chain name:', chainName);
-
-      if (!chainName) throw new Error('Unsupported chain');
-
       // Normalize contract address
       const normalizedAddress = token.contract_address.toLowerCase();
       console.log('[WalletContext] Normalized address:', normalizedAddress);
@@ -171,7 +140,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         .select('id')
         .eq('user_id', user.id)
         .eq('contract_address', normalizedAddress)
-        .eq('chain', chainName)
+        .eq('chain_id', chainId)
         .maybeSingle();
 
       console.log('[WalletContext] Existing token check:', {
@@ -189,7 +158,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         .from('custom_tokens')
         .insert({
           user_id: user.id,
-          chain: chainName,
+          chain_id: chainId,
           contract_address: normalizedAddress,
           name: token.name,
           symbol: token.symbol,

@@ -85,7 +85,7 @@ export default function TokenList() {
           symbol: token.symbol,
           decimals: token.decimals,
           logo_url: token.logo_url,
-          chain: 'bnb',
+          chain_id: 56,
         });
 
         if (error) {
