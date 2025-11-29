@@ -15,7 +15,8 @@ interface PostData {
   id: string;
   content: string;
   created_at: string;
-  media: any;
+  media_url: string | null;
+  media_type: string | null;
   profiles: {
     username: string;
     avatar_url: string;
@@ -53,7 +54,8 @@ export default function Profile() {
           id,
           content,
           created_at,
-          media,
+          media_url,
+          media_type,
           profiles (
             username,
             avatar_url
@@ -224,10 +226,10 @@ export default function Profile() {
                     likes={0}
                     comments={0}
                     shares={0}
-                    media={post.media?.map(item => ({
-                      type: item.type as "image" | "video",
-                      url: item.url
-                    }))}
+                    media={post.media_url && post.media_type ? [{
+                      type: post.media_type as "image" | "video",
+                      url: post.media_url
+                    }] : undefined}
                   />
                 ))
               ) : (
@@ -239,22 +241,21 @@ export default function Profile() {
               )}
             </TabsContent>
             <TabsContent value="media" className="mt-6">
-              {posts.filter(p => p.media && p.media.length > 0).length > 0 ? (
+              {posts.filter(p => p.media_url).length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {posts
-                    .filter(p => p.media && p.media.length > 0)
-                    .flatMap(p => p.media || [])
-                    .map((item, index) => (
+                    .filter(p => p.media_url)
+                    .map((post, index) => (
                       <div key={index} className="relative overflow-hidden rounded-lg bg-muted aspect-square">
-                        {item.type === "video" ? (
+                        {post.media_type === "video" ? (
                           <video
-                            src={item.url}
+                            src={post.media_url!}
                             className="w-full h-full object-cover"
                             controls
                           />
                         ) : (
                           <img
-                            src={item.url}
+                            src={post.media_url!}
                             alt={`Media ${index + 1}`}
                             className="w-full h-full object-cover hover:scale-105 transition-transform"
                           />

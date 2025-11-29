@@ -173,18 +173,29 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
 
   // Save transaction when confirmed
   const saveTransaction = async (txHash: string) => {
-    if (!address) return;
+    if (!address || !chainId) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Get wallet_id first
+    const { data: wallet } = await supabase
+      .from("wallets")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("chain_id", chainId)
+      .single();
+
+    if (!wallet) return;
+
     const { error } = await supabase.from("transactions").insert({
       user_id: user.id,
-      chain: "bnb",
+      wallet_id: wallet.id,
       tx_hash: txHash,
       type: "swap",
       from_address: address,
       to_address: address,
+      token_symbol: fromToken,
       amount: `${fromAmount} ${fromToken}`,
     });
 

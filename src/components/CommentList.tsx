@@ -8,7 +8,7 @@ interface Comment {
   content: string;
   created_at: string;
   user_id: string;
-  parent_comment_id: string | null;
+  parent_id: string | null;
   profiles: {
     username: string | null;
     avatar_url: string | null;
@@ -105,13 +105,13 @@ export default function CommentList({ postId, onReply }: CommentListProps) {
   }
 
   // Separate top-level comments and replies
-  const topLevelComments = comments.filter(c => !c.parent_comment_id);
+  const topLevelComments = comments.filter(c => !c.parent_id);
   const repliesMap = comments.reduce((acc, comment) => {
-    if (comment.parent_comment_id) {
-      if (!acc[comment.parent_comment_id]) {
-        acc[comment.parent_comment_id] = [];
+    if (comment.parent_id) {
+      if (!acc[comment.parent_id]) {
+        acc[comment.parent_id] = [];
       }
-      acc[comment.parent_comment_id].push(comment);
+      acc[comment.parent_id].push(comment);
     }
     return acc;
   }, {} as Record<string, Comment[]>);

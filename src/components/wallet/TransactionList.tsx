@@ -7,13 +7,15 @@ import { supportedChains } from "@/lib/wagmi-config";
 
 interface Transaction {
   id: string;
-  chain: 'bnb' | 'ethereum';
-  tx_hash: string;
-  type: 'send' | 'receive';
+  tx_hash: string | null;
+  type: string;
   amount: string;
-  from_address: string;
-  to_address: string;
+  token_symbol: string;
+  from_address: string | null;
+  to_address: string | null;
+  status: string;
   created_at: string;
+  wallet_id: string;
 }
 
 export default function TransactionList() {
@@ -85,7 +87,6 @@ export default function TransactionList() {
       </CardHeader>
       <CardContent className="space-y-3">
         {transactions.map((tx) => {
-          const chainInfo = supportedChains[tx.chain === 'bnb' ? 56 : 1];
           return (
             <div
               key={tx.id}
@@ -119,16 +120,18 @@ export default function TransactionList() {
                   }`}
                 >
                   {tx.type === "receive" ? "+" : "-"}
-                  {tx.amount} {chainInfo?.symbol}
+                  {tx.amount} {tx.token_symbol}
                 </p>
-                <a
-                  href={`${chainInfo?.explorer}/tx/${tx.tx_hash}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline inline-flex items-center gap-1"
-                >
-                  View <ExternalLink className="h-3 w-3" />
-                </a>
+                {tx.tx_hash && (
+                  <a
+                    href={`https://bscscan.com/tx/${tx.tx_hash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    View <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </div>
             </div>
           );

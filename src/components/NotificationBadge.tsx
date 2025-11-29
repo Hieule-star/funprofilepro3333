@@ -17,13 +17,11 @@ import { useNavigate } from "react-router-dom";
 interface Notification {
   id: string;
   type: string;
-  is_read: boolean;
+  read: boolean;
   created_at: string;
-  comment_id: string | null;
-  post_id: string | null;
-  actor: {
-    username: string | null;
-  } | null;
+  title: string;
+  message: string;
+  link: string | null;
 }
 
 export default function NotificationBadge() {
@@ -64,12 +62,7 @@ export default function NotificationBadge() {
 
     const { data, error } = await supabase
       .from("notifications")
-      .select(
-        `
-        *,
-        actor:profiles!notifications_actor_id_fkey (username)
-      `
-      )
+      .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(10);
@@ -80,39 +73,22 @@ export default function NotificationBadge() {
     }
 
     setNotifications(data || []);
-    setUnreadCount(data?.filter((n) => !n.is_read).length || 0);
+    setUnreadCount(data?.filter((n) => !n.read).length || 0);
   };
 
   const markAsRead = async (notificationId: string) => {
     await supabase
       .from("notifications")
-      .update({ is_read: true })
+      .update({ read: true })
       .eq("id", notificationId);
   };
 
   const handleNotificationClick = async (notification: Notification) => {
     await markAsRead(notification.id);
     
-    // Navigate to the post/comment
-    if (notification.post_id) {
-      navigate("/");
-    }
-  };
-
-  const getNotificationText = (notification: Notification) => {
-    const username = notification.actor?.username || "Ai đó";
-    
-    switch (notification.type) {
-      case "comment_like":
-        return `${username} đã thích bình luận của bạn`;
-      case "comment_reply":
-        return `${username} đã trả lời bình luận của bạn`;
-      case "comment_mention":
-        return `${username} đã nhắc đến bạn trong bình luận`;
-      case "post_like":
-        return `${username} đã thích bài viết của bạn`;
-      default:
-        return "Thông báo mới";
+    // Navigate to the link if available
+    if (notification.link) {
+      navigate(notification.link);
     }
   };
 
@@ -147,12 +123,13 @@ export default function NotificationBadge() {
               <DropdownMenuItem
                 key={notification.id}
                 className={`p-3 cursor-pointer ${
-                  !notification.is_read ? "bg-primary/5" : ""
+                  !notification.read ? "bg-primary/5" : ""
                 }`}
                 onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex-1">
-                  <p className="text-sm">{getNotificationText(notification)}</p>
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  <p className="text-xs text-muted-foreground">{notification.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {formatDistanceToNow(new Date(notification.created_at), {
                       addSuffix: true,
@@ -160,7 +137,7 @@ export default function NotificationBadge() {
                     })}
                   </p>
                 </div>
-                {!notification.is_read && (
+                {!notification.read && (
                   <div className="h-2 w-2 bg-primary rounded-full ml-2" />
                 )}
               </DropdownMenuItem>

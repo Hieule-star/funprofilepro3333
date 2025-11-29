@@ -130,21 +130,30 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   const saveTransaction = async (txHash: string) => {
     if (!address || !chainId) return;
 
-    const chainMap: Record<number, "bnb" | "ethereum"> = {
-      56: "bnb",
-      1: "ethereum",
-    };
-
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Get wallet_id first
+    const { data: wallet } = await supabase
+      .from("wallets")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("chain_id", chainId)
+      .single();
+
+    if (!wallet) return;
+
+    // Determine token symbol based on chain
+    const tokenSymbol = chainId === 56 ? "BNB" : "ETH";
+
     const { error } = await supabase.from("transactions").insert({
       user_id: user.id,
-      chain: chainMap[chainId],
+      wallet_id: wallet.id,
       tx_hash: txHash,
       type: "send",
       from_address: address,
       to_address: recipientAddress,
+      token_symbol: tokenSymbol,
       amount: amount,
     });
 

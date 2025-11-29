@@ -7,11 +7,8 @@ interface WatchlistItem {
   id: string;
   user_id: string;
   token_symbol: string;
-  token_name: string | null;
-  price_alert_upper: number | null;
-  price_alert_lower: number | null;
-  created_at: string;
-  updated_at: string;
+  token_name: string;
+  added_at: string;
 }
 
 export function useWatchlist(userId?: string) {
@@ -27,7 +24,7 @@ export function useWatchlist(userId?: string) {
         .from('token_watchlist')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: false });
+        .order('added_at', { ascending: false });
 
       if (error) throw error;
       return data as WatchlistItem[];
@@ -39,13 +36,9 @@ export function useWatchlist(userId?: string) {
     mutationFn: async ({
       tokenSymbol,
       tokenName,
-      priceAlertUpper,
-      priceAlertLower,
     }: {
       tokenSymbol: string;
-      tokenName?: string;
-      priceAlertUpper?: number;
-      priceAlertLower?: number;
+      tokenName: string;
     }) => {
       if (!userId) throw new Error('User not authenticated');
 
@@ -55,8 +48,6 @@ export function useWatchlist(userId?: string) {
           user_id: userId,
           token_symbol: tokenSymbol,
           token_name: tokenName,
-          price_alert_upper: priceAlertUpper,
-          price_alert_lower: priceAlertLower,
         })
         .select()
         .single();
@@ -98,40 +89,10 @@ export function useWatchlist(userId?: string) {
     },
   });
 
-  const updatePriceAlerts = useMutation({
-    mutationFn: async ({
-      itemId,
-      priceAlertUpper,
-      priceAlertLower,
-    }: {
-      itemId: string;
-      priceAlertUpper?: number | null;
-      priceAlertLower?: number | null;
-    }) => {
-      const { error } = await supabase
-        .from('token_watchlist')
-        .update({
-          price_alert_upper: priceAlertUpper,
-          price_alert_lower: priceAlertLower,
-        })
-        .eq('id', itemId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['watchlist', userId] });
-      toast({
-        title: 'Đã cập nhật',
-        description: 'Cảnh báo giá đã được cập nhật',
-      });
-    },
-  });
-
   return {
     watchlist: watchlist || [],
     isLoading,
     addToWatchlist: addToWatchlist.mutate,
     removeFromWatchlist: removeFromWatchlist.mutate,
-    updatePriceAlerts: updatePriceAlerts.mutate,
   };
 }
