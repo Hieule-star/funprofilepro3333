@@ -7,13 +7,14 @@ interface TokenItemProps {
   name: string;
   symbol: string;
   balance: string;
+  rawBalance?: number; // Raw number for calculation
   usdValue?: number | null;
   isLoading?: boolean;
   logoUrl?: string | null;
 }
 
-export default function TokenItem({ icon, name, symbol, balance, usdValue, isLoading, logoUrl }: TokenItemProps) {
-  const balanceNum = parseFloat(balance);
+export default function TokenItem({ icon, name, symbol, balance, rawBalance, usdValue, isLoading, logoUrl }: TokenItemProps) {
+  const balanceNum = rawBalance ?? parseFloat(balance.replace(/,/g, ''));
   const totalUsdValue = usdValue && !isNaN(balanceNum) ? balanceNum * usdValue : null;
   
   // Determine if icon is a URL or emoji
