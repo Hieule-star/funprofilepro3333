@@ -12,6 +12,7 @@ interface VideoCallModalProps {
   targetUsername: string;
   conversationId: string;
   isCaller: boolean;
+  callAccepted: boolean;
 }
 
 export default function VideoCallModal({
@@ -21,62 +22,77 @@ export default function VideoCallModal({
   targetUserId,
   targetUsername,
   conversationId,
-  isCaller
+  isCaller,
+  callAccepted
 }: VideoCallModalProps) {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
-  const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'ended'>('connecting');
+  const [callStatus, setCallStatus] = useState<'waiting' | 'connecting' | 'connected' | 'ended'>(
+    isCaller ? 'waiting' : 'connecting'
+  );
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const webrtcManagerRef = useRef<WebRTCManager | null>(null);
 
+  // Wait for call acceptance before initializing WebRTC
   useEffect(() => {
     if (!open) return;
+    
+    // Caller waits for acceptance
+    if (isCaller && !callAccepted) {
+      setCallStatus('waiting');
+      return;
+    }
 
-    const initializeCall = async () => {
-      try {
-        const manager = new WebRTCManager(
-          currentUserId,
-          targetUserId,
-          conversationId,
-          (remoteStream) => {
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = remoteStream;
-              setCallStatus('connected');
+    // Once accepted or if callee, initialize WebRTC
+    if (!isCaller || callAccepted) {
+      setCallStatus('connecting');
+      
+      const initializeCall = async () => {
+        try {
+          const manager = new WebRTCManager(
+            currentUserId,
+            targetUserId,
+            conversationId,
+            (remoteStream) => {
+              if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = remoteStream;
+                setCallStatus('connected');
+              }
+            },
+            () => {
+              setCallStatus('ended');
+              onOpenChange(false);
             }
-          },
-          () => {
-            setCallStatus('ended');
-            onOpenChange(false);
+          );
+
+          webrtcManagerRef.current = manager;
+          await manager.initialize();
+
+          let localStream: MediaStream;
+          if (isCaller) {
+            localStream = await manager.startCall(videoEnabled);
+          } else {
+            localStream = await manager.answerCall(videoEnabled);
           }
-        );
 
-        webrtcManagerRef.current = manager;
-        await manager.initialize();
-
-        let localStream: MediaStream;
-        if (isCaller) {
-          localStream = await manager.startCall(videoEnabled);
-        } else {
-          localStream = await manager.answerCall(videoEnabled);
+          if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStream;
+          }
+        } catch (error) {
+          console.error("Error initializing call:", error);
+          onOpenChange(false);
         }
+      };
 
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = localStream;
-        }
-      } catch (error) {
-        console.error("Error initializing call:", error);
-        onOpenChange(false);
-      }
-    };
-
-    initializeCall();
+      initializeCall();
+    }
 
     return () => {
       webrtcManagerRef.current?.endCall();
     };
-  }, [open, currentUserId, targetUserId, conversationId, isCaller]);
+  }, [open, currentUserId, targetUserId, conversationId, isCaller, callAccepted, videoEnabled]);
 
   const toggleAudio = () => {
     const newState = !audioEnabled;
@@ -121,6 +137,7 @@ export default function VideoCallModal({
           {/* Call status */}
           <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full">
             <p className="text-white text-sm font-medium">
+              {callStatus === 'waiting' && `Đang chờ ${targetUsername} phản hồi...`}
               {callStatus === 'connecting' && `Đang kết nối với ${targetUsername}...`}
               {callStatus === 'connected' && `Đang gọi ${targetUsername}`}
               {callStatus === 'ended' && 'Cuộc gọi đã kết thúc'}

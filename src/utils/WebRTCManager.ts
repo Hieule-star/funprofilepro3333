@@ -24,43 +24,55 @@ export class WebRTCManager {
   }
 
   async initialize() {
-    const projectRef = "krajdsugcvwytpsqnbzs";
-    this.ws = new WebSocket(`wss://${projectRef}.supabase.co/functions/v1/realtime-video`);
+    return new Promise<void>((resolve, reject) => {
+      const projectRef = "krajdsugcvwytpsqnbzs";
+      this.ws = new WebSocket(`wss://${projectRef}.supabase.co/functions/v1/realtime-video`);
 
-    this.ws.onopen = () => {
-      console.log("WebSocket connected");
-      this.ws?.send(JSON.stringify({
-        type: 'join',
-        senderId: this.userId,
-        conversationId: this.conversationId
-      }));
-    };
+      const timeout = setTimeout(() => {
+        reject(new Error('WebSocket connection timeout'));
+        this.cleanup();
+      }, 10000);
 
-    this.ws.onmessage = async (event) => {
-      const message = JSON.parse(event.data);
-      console.log("Received signaling message:", message.type);
+      this.ws.onopen = () => {
+        console.log("WebSocket connected");
+        clearTimeout(timeout);
+        this.ws?.send(JSON.stringify({
+          type: 'join',
+          senderId: this.userId,
+          conversationId: this.conversationId
+        }));
+        resolve();
+      };
 
-      switch (message.type) {
-        case 'offer':
-          await this.handleOffer(message.data);
-          break;
-        case 'answer':
-          await this.handleAnswer(message.data);
-          break;
-        case 'ice-candidate':
-          await this.handleIceCandidate(message.data);
-          break;
-      }
-    };
+      this.ws.onmessage = async (event) => {
+        const message = JSON.parse(event.data);
+        console.log("Received signaling message:", message.type);
 
-    this.ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-    };
+        switch (message.type) {
+          case 'offer':
+            await this.handleOffer(message.data);
+            break;
+          case 'answer':
+            await this.handleAnswer(message.data);
+            break;
+          case 'ice-candidate':
+            await this.handleIceCandidate(message.data);
+            break;
+        }
+      };
 
-    this.ws.onclose = () => {
-      console.log("WebSocket closed");
-      this.cleanup();
-    };
+      this.ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        clearTimeout(timeout);
+        reject(error);
+      };
+
+      this.ws.onclose = () => {
+        console.log("WebSocket closed");
+        clearTimeout(timeout);
+        this.cleanup();
+      };
+    });
   }
 
   async startCall(videoEnabled: boolean = true) {
