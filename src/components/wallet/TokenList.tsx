@@ -157,6 +157,7 @@ export default function TokenList() {
             name={chainId === 56 ? "BNB" : "Ethereum"}
             symbol={chainId === 56 ? "BNB" : "ETH"}
             balance={nativeBalance ? formatBalance(Number(nativeBalance.value) / Math.pow(10, nativeBalance.decimals)) : "0"}
+            rawBalance={nativeBalance ? Number(nativeBalance.value) / Math.pow(10, nativeBalance.decimals) : 0}
             usdValue={nativePrice}
           />
 
@@ -235,12 +236,15 @@ function CustomTokenItem({
   const { data: priceByContract } = useTokenPriceByContract(chainId, address);
   const tokenPrice = priceBySymbol || priceByContract;
 
+  const rawBalanceValue = tokenBalance ? Number(tokenBalance) / Math.pow(10, decimals) : 0;
+
   return (
     <TokenItem
       logoUrl={logo}
       name={name}
       symbol={symbol}
-      balance={tokenBalance ? formatBalance(Number(tokenBalance) / Math.pow(10, decimals)) : "0"}
+      balance={formatBalance(rawBalanceValue)}
+      rawBalance={rawBalanceValue}
       usdValue={tokenPrice}
       isLoading={isLoading}
     />
