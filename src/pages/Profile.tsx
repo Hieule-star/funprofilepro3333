@@ -11,12 +11,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+interface MediaItem {
+  type: "image" | "video";
+  url: string;
+}
+
 interface PostData {
   id: string;
   content: string;
   created_at: string;
-  media_url: string | null;
-  media_type: string | null;
+  media: MediaItem[] | null;
   profiles: {
     username: string;
     avatar_url: string;
@@ -54,8 +58,7 @@ export default function Profile() {
           id,
           content,
           created_at,
-          media_url,
-          media_type,
+          media,
           profiles (
             username,
             avatar_url
@@ -65,7 +68,7 @@ export default function Profile() {
         .order("created_at", { ascending: false });
 
       if (postsError) throw postsError;
-      setPosts(postsData || []);
+      setPosts((postsData as any) || []);
 
       // Calculate stats
       const postsCount = postsData?.length || 0;
@@ -226,10 +229,7 @@ export default function Profile() {
                     likes={0}
                     comments={0}
                     shares={0}
-                    media={post.media_url && post.media_type ? [{
-                      type: post.media_type as "image" | "video",
-                      url: post.media_url
-                    }] : undefined}
+                    media={post.media || undefined}
                   />
                 ))
               ) : (
@@ -241,21 +241,22 @@ export default function Profile() {
               )}
             </TabsContent>
             <TabsContent value="media" className="mt-6">
-              {posts.filter(p => p.media_url).length > 0 ? (
+              {posts.filter(p => p.media && p.media.length > 0).length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   {posts
-                    .filter(p => p.media_url)
-                    .map((post, index) => (
+                    .filter(p => p.media && p.media.length > 0)
+                    .flatMap(post => post.media || [])
+                    .map((mediaItem, index) => (
                       <div key={index} className="relative overflow-hidden rounded-lg bg-muted aspect-square">
-                        {post.media_type === "video" ? (
+                        {mediaItem.type === "video" ? (
                           <video
-                            src={post.media_url!}
+                            src={mediaItem.url}
                             className="w-full h-full object-cover"
                             controls
                           />
                         ) : (
                           <img
-                            src={post.media_url!}
+                            src={mediaItem.url}
                             alt={`Media ${index + 1}`}
                             className="w-full h-full object-cover hover:scale-105 transition-transform"
                           />

@@ -395,6 +395,7 @@ export type Database = {
           content: string | null
           created_at: string
           id: string
+          media: Json | null
           media_type: string | null
           media_url: string | null
           updated_at: string
@@ -404,6 +405,7 @@ export type Database = {
           content?: string | null
           created_at?: string
           id?: string
+          media?: Json | null
           media_type?: string | null
           media_url?: string | null
           updated_at?: string
@@ -413,6 +415,7 @@ export type Database = {
           content?: string | null
           created_at?: string
           id?: string
+          media?: Json | null
           media_type?: string | null
           media_url?: string | null
           updated_at?: string

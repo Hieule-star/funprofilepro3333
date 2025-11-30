@@ -6,11 +6,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+interface MediaItem {
+  type: "image" | "video";
+  url: string;
+}
+
 interface PostWithProfile {
   id: string;
   content: string | null;
-  media_url: string | null;
-  media_type: string | null;
+  media: MediaItem[] | null;
   created_at: string;
   user_id: string;
   profiles: {
@@ -37,7 +41,7 @@ export default function Feed() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts(data || []);
+      setPosts((data as any) || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
@@ -115,10 +119,7 @@ export default function Feed() {
                       likes={0}
                       comments={0}
                       shares={0}
-                      media={post.media_url && post.media_type ? [{
-                        type: post.media_type as 'image' | 'video',
-                        url: post.media_url
-                      }] : undefined}
+                      media={post.media || undefined}
                     />
                   );
                 })
