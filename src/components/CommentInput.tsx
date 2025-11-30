@@ -153,6 +153,67 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
       return;
     }
 
+    // Handle mention notifications
+    const mentionPattern = /@(\w+)/g;
+    const mentions = [...content.matchAll(mentionPattern)].map(m => m[1]);
+
+    if (mentions.length > 0) {
+      // Lookup user IDs for mentioned usernames
+      const { data: mentionedUsers } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('username', mentions);
+      
+      // Get current user's username
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+      
+      // Create notifications for mentioned users (exclude self)
+      if (mentionedUsers && mentionedUsers.length > 0) {
+        const notifications = mentionedUsers
+          .filter(u => u.id !== user.id)
+          .map(mentionedUser => ({
+            user_id: mentionedUser.id,
+            type: 'mention',
+            title: 'Bạn được nhắc đến',
+            message: `${currentProfile?.username || 'Ai đó'} đã nhắc đến bạn trong một bình luận`,
+            read: false,
+            link: '/feed'
+          }));
+        
+        if (notifications.length > 0) {
+          await supabase.from('notifications').insert(notifications);
+        }
+      }
+    }
+
+    // Notify post owner about new comment
+    const { data: post } = await supabase
+      .from('posts')
+      .select('user_id')
+      .eq('id', postId)
+      .single();
+
+    if (post && post.user_id !== user.id) {
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+
+      await supabase.from('notifications').insert({
+        user_id: post.user_id,
+        type: 'comment',
+        title: 'Có bình luận mới',
+        message: `${currentProfile?.username || 'Ai đó'} đã bình luận vào bài viết của bạn`,
+        read: false,
+        link: '/feed'
+      });
+    }
+
     setContent("");
     setIsSubmitting(false);
     onCancelReply?.();
