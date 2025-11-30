@@ -12,6 +12,7 @@ import { useTokenPrice, useTokenPriceByContract } from "@/hooks/useTokenPrice";
 import { useAutoDetect } from "@/hooks/useAutoDetect";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { formatBalance } from "@/lib/utils";
 
 export default function TokenList() {
   const { isConnected, address, chainId, customTokens, refreshTokens } = useWallet();
@@ -155,7 +156,7 @@ export default function TokenList() {
             icon={chainId === 56 ? "🟡" : "🔷"}
             name={chainId === 56 ? "BNB" : "Ethereum"}
             symbol={chainId === 56 ? "BNB" : "ETH"}
-            balance={nativeBalance ? (Number(nativeBalance.value) / Math.pow(10, nativeBalance.decimals)).toFixed(4) : "0"}
+            balance={nativeBalance ? formatBalance(Number(nativeBalance.value) / Math.pow(10, nativeBalance.decimals)) : "0"}
             usdValue={nativePrice}
           />
 
@@ -239,7 +240,7 @@ function CustomTokenItem({
       logoUrl={logo}
       name={name}
       symbol={symbol}
-      balance={tokenBalance ? (Number(tokenBalance) / Math.pow(10, decimals)).toFixed(4) : "0"}
+      balance={tokenBalance ? formatBalance(Number(tokenBalance) / Math.pow(10, decimals)) : "0"}
       usdValue={tokenPrice}
       isLoading={isLoading}
     />
