@@ -48,19 +48,28 @@ async function fetchTokenPriceByContract(
   contractAddress: string
 ): Promise<number | null> {
   const platform = PLATFORM_MAP[chainId];
-  if (!platform) return null;
+  if (!platform) {
+    console.log('[TokenPrice] Unsupported chain:', chainId);
+    return null;
+  }
 
   try {
-    const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${contractAddress}&vs_currencies=usd`
-    );
+    const url = `https://api.coingecko.com/api/v3/simple/token_price/${platform}?contract_addresses=${contractAddress}&vs_currencies=usd`;
+    console.log('[TokenPrice] Fetching price for contract:', { chainId, contractAddress, url });
     
-    if (!response.ok) return null;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error('[TokenPrice] API error:', response.status);
+      return null;
+    }
     
     const data = await response.json();
     const price = data[contractAddress.toLowerCase()]?.usd;
+    console.log('[TokenPrice] Received price:', { contractAddress, price });
     return price || null;
-  } catch {
+  } catch (error) {
+    console.error('[TokenPrice] Fetch error:', error);
     return null;
   }
 }

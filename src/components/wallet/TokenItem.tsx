@@ -66,18 +66,23 @@ export default function TokenItem({ icon, name, symbol, balance, usdValue, isLoa
             </div>
           </div>
           <div className="text-right">
-            <p className="font-semibold">{balance}</p>
-            <div className="flex items-center justify-end gap-1">
-              <p className="text-xs text-muted-foreground">{symbol}</p>
-              {usdValue && (
-                <span className="text-xs text-muted-foreground">
-                  • ${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-              )}
-            </div>
-            {totalUsdValue !== null && (
-              <p className="text-xs font-medium text-primary">
-                ~${totalUsdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <p className="font-semibold text-lg">{balance}</p>
+            <p className="text-xs text-muted-foreground">{symbol}</p>
+            {usdValue !== null && usdValue !== undefined && (
+              <div className="mt-1 space-y-0.5">
+                <p className="text-xs text-muted-foreground">
+                  Giá: ${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}
+                </p>
+                {totalUsdValue !== null && (
+                  <p className="text-sm font-semibold text-primary">
+                    ≈ ${totalUsdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD
+                  </p>
+                )}
+              </div>
+            )}
+            {(usdValue === null || usdValue === undefined) && !isLoading && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Giá chưa có
               </p>
             )}
           </div>
