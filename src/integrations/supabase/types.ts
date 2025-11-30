@@ -14,6 +14,50 @@ export type Database = {
   }
   public: {
     Tables: {
+      claim_requests: {
+        Row: {
+          amount_db: number
+          amount_token: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          status: string
+          tx_hash: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Insert: {
+          amount_db: number
+          amount_token: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          tx_hash?: string | null
+          user_id: string
+          wallet_address: string
+        }
+        Update: {
+          amount_db?: number
+          amount_token?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          status?: string
+          tx_hash?: string | null
+          user_id?: string
+          wallet_address?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "claim_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comment_likes: {
         Row: {
           comment_id: string
