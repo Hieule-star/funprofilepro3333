@@ -70,7 +70,7 @@ const POPULAR_TOKENS = {
       name: "CAMLY COIN",
       symbol: "CAMLY",
       address: "0x0910320181889fefde0bb1ca63962b0a8882e413",
-      decimals: 9,
+      decimals: 3,
       logo: "😊",
     },
   ],
@@ -276,17 +276,35 @@ export default function AddTokenModal({ isOpen, onClose }: AddTokenModalProps) {
     setIsFetching(true);
     
     try {
-      // Fetch logo from CoinGecko for popular tokens too
+      const chain = chainId === 56 ? bsc : chainId === 1 ? mainnet : null;
+      if (!chain) {
+        throw new Error("Network không được hỗ trợ");
+      }
+
+      const publicClient = createPublicClient({
+        chain,
+        transport: http(),
+      });
+
+      // Fetch decimals from blockchain to ensure accuracy
+      const decimals = await publicClient.readContract({
+        address: token.address as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'decimals' as const,
+      } as any);
+
+      // Fetch logo from CoinGecko
       const logoInfo = await fetchTokenLogo(token.address, chainId!);
       
       setTokenInfo({
         name: token.name,
         symbol: token.symbol,
-        decimals: token.decimals,
+        decimals: Number(decimals),
         logo_url: logoInfo.logo_url,
       });
     } catch (error) {
-      console.error('Error fetching logo for popular token:', error);
+      console.error('Error fetching token info for popular token:', error);
+      // Fallback to hardcoded values if blockchain fetch fails
       setTokenInfo({
         name: token.name,
         symbol: token.symbol,
