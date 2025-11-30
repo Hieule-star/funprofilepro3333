@@ -26,22 +26,35 @@ serve(async (req) => {
   }
 
   try {
+    // Validate auth header
+    const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Vui lòng đăng nhập để thực hiện claim' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
         },
       }
     );
 
     // Get authenticated user
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    console.log('User authenticated:', !!user);
+    
     if (authError || !user) {
       console.error('Auth error:', authError);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Phiên đăng nhập không hợp lệ' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
