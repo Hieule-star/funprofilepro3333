@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Wallet, Mail, Chrome, AlertCircle, Loader2 } from "lucide-react";
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { usePrivy, useWallets, useConnectWallet } from '@privy-io/react-auth';
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { isPrivyConfigured } from "@/lib/privy-config";
@@ -24,14 +24,31 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
   const { disconnect: walletDisconnect } = useWallet();
 
   // Only use Privy hooks if it's configured
-  let login, authenticated, user, wallets;
+  let login, authenticated, user, wallets, connectWallet;
   if (privyEnabled) {
     const privyAuth = usePrivy();
     const privyWallets = useWallets();
+    const privyConnect = useConnectWallet({
+      onSuccess: () => {
+        toast({
+          title: "Kết nối thành công!",
+          description: "Ví đã được kết nối",
+        });
+        onOpenChange(false);
+      },
+      onError: (error) => {
+        toast({
+          title: "Kết nối thất bại",
+          description: String(error),
+          variant: "destructive",
+        });
+      },
+    });
     login = privyAuth.login;
     authenticated = privyAuth.authenticated;
     user = privyAuth.user;
     wallets = privyWallets.wallets;
+    connectWallet = privyConnect.connectWallet;
   }
 
   useEffect(() => {
@@ -66,8 +83,8 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
     if (login) login();
   };
 
-  const handleExternalWallet = () => {
-    if (!privyEnabled) {
+  const handleMetaMask = () => {
+    if (!privyEnabled || !connectWallet) {
       toast({
         title: "Privy chưa được cấu hình",
         description: "Vui lòng thêm VITE_PRIVY_APP_ID vào secrets",
@@ -75,7 +92,31 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
       });
       return;
     }
-    if (login) login();
+    connectWallet({ walletList: ['metamask'] });
+  };
+
+  const handleTrustWallet = () => {
+    if (!privyEnabled || !connectWallet) {
+      toast({
+        title: "Privy chưa được cấu hình",
+        description: "Vui lòng thêm VITE_PRIVY_APP_ID vào secrets",
+        variant: "destructive",
+      });
+      return;
+    }
+    connectWallet({ walletList: ['wallet_connect_v2'] });
+  };
+
+  const handleBitgetWallet = () => {
+    if (!privyEnabled || !connectWallet) {
+      toast({
+        title: "Privy chưa được cấu hình",
+        description: "Vui lòng thêm VITE_PRIVY_APP_ID vào secrets",
+        variant: "destructive",
+      });
+      return;
+    }
+    connectWallet({ walletList: ['wallet_connect_v2'] });
   };
 
   return (
@@ -150,7 +191,7 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
                     <Button
                       variant="outline"
                       className="w-full justify-start gap-3"
-                      onClick={handleExternalWallet}
+                      onClick={handleMetaMask}
                     >
                       <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask" className="h-5 w-5" />
                       MetaMask
@@ -158,7 +199,7 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
                     <Button
                       variant="outline"
                       className="w-full justify-start gap-3"
-                      onClick={handleExternalWallet}
+                      onClick={handleTrustWallet}
                     >
                       <Wallet className="h-5 w-5" />
                       Trust Wallet
@@ -166,7 +207,7 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
                     <Button
                       variant="outline"
                       className="w-full justify-start gap-3"
-                      onClick={handleExternalWallet}
+                      onClick={handleBitgetWallet}
                     >
                       <Wallet className="h-5 w-5" />
                       Bitget Wallet
