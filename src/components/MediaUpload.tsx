@@ -189,7 +189,7 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4 }: MediaUpload
               </button>
             </p>
             <p className="text-xs text-muted-foreground">
-              Hỗ trợ JPG, PNG, GIF, WebP, MP4, WebM (Tối đa 100MB)
+              Hỗ trợ JPG, PNG, GIF, WebP, MP4, WebM (Tối đa 4000 MB)
             </p>
           </div>
         </div>
