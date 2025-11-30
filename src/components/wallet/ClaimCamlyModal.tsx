@@ -29,6 +29,16 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
 
   const tokenAmount = amountDb ? Math.floor(parseFloat(amountDb) / EXCHANGE_RATE).toLocaleString() : "0";
 
+  const playCelebrationSound = () => {
+    try {
+      const audio = new Audio('/sounds/celebration.mp3');
+      audio.volume = 0.5;
+      audio.play().catch(err => console.log('Audio play failed:', err));
+    } catch (error) {
+      console.log('Failed to play celebration sound:', error);
+    }
+  };
+
   const fireConfetti = () => {
     const colors = ['#ff69b4', '#ff1493', '#ffd700', '#00ff00', '#00d4ff', '#ff6b6b', '#ffffff'];
     
@@ -125,8 +135,9 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
         return;
       }
 
-      // 🎉 Fire confetti celebration!
+      // 🎉 Fire confetti celebration and play sound!
       fireConfetti();
+      playCelebrationSound();
 
       toast.success(
         <div className="flex flex-col gap-1">
