@@ -251,7 +251,7 @@ export default function Profile() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Đổi CAMLY coin sang token thật trên BNB Chain (100,000 CAMLY = 1 Token)
+                Đổi Camly Coin sang token thật trên BNB Chain (1 Camly = 1 Token)
               </p>
             </CardContent>
           </Card>
