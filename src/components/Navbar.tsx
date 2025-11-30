@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users, UserCircle, Wallet, Search, Sun, Moon, LogOut, User as UserIcon, MessageCircle, Gamepad2, Trophy } from "lucide-react";
+import { Home, Users, UserCircle, Wallet, Search, Sun, Moon, LogOut, User as UserIcon, MessageCircle, Gamepad2, Trophy, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -123,6 +123,12 @@ export default function Navbar() {
                     <Link to="/wallet" className="cursor-pointer">
                       <Wallet className="mr-2 h-4 w-4" />
                       <span>Ví</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/claim-history" className="cursor-pointer">
+                      <History className="mr-2 h-4 w-4" />
+                      <span>Lịch sử Claim</span>
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
