@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 
 interface ChatHeaderProps {
   conversation: any;
+  onVideoCall?: () => void;
+  onVoiceCall?: () => void;
 }
 
-export default function ChatHeader({ conversation }: ChatHeaderProps) {
+export default function ChatHeader({ conversation, onVideoCall, onVoiceCall }: ChatHeaderProps) {
   const otherUser = conversation.participants[0]?.profiles;
 
   return (
@@ -25,10 +27,10 @@ export default function ChatHeader({ conversation }: ChatHeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" onClick={onVoiceCall}>
           <Phone className="h-5 w-5" />
         </Button>
-        <Button variant="ghost" size="icon">
+        <Button variant="ghost" size="icon" onClick={onVideoCall}>
           <Video className="h-5 w-5" />
         </Button>
         <Button variant="ghost" size="icon">

@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.paymaster]
 verify_jwt = false
+
+[functions.realtime-video]
+verify_jwt = false

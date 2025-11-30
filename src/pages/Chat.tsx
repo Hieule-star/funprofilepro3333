@@ -4,14 +4,22 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatHeader from "@/components/chat/ChatHeader";
 import MessageList from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
+import VideoCallModal from "@/components/chat/VideoCallModal";
+import IncomingCallModal from "@/components/chat/IncomingCallModal";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function Chat() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [videoCallOpen, setVideoCallOpen] = useState(false);
+  const [incomingCallOpen, setIncomingCallOpen] = useState(false);
+  const [callInitiator, setCallInitiator] = useState<string>("");
+  const [isCaller, setIsCaller] = useState(false);
 
   useEffect(() => {
     if (!selectedConversation) return;
@@ -81,6 +89,39 @@ export default function Chat() {
     }
   };
 
+  const handleVideoCall = () => {
+    if (!selectedConversation) return;
+    setIsCaller(true);
+    setVideoCallOpen(true);
+    toast({
+      title: "Đang gọi...",
+      description: `Đang kết nối với ${selectedConversation.participants[0]?.profiles?.username}`,
+    });
+  };
+
+  const handleVoiceCall = () => {
+    if (!selectedConversation) return;
+    setIsCaller(true);
+    setVideoCallOpen(true);
+    toast({
+      title: "Đang gọi...",
+      description: `Đang kết nối với ${selectedConversation.participants[0]?.profiles?.username}`,
+    });
+  };
+
+  const handleAcceptCall = () => {
+    setIncomingCallOpen(false);
+    setIsCaller(false);
+    setVideoCallOpen(true);
+  };
+
+  const handleRejectCall = () => {
+    setIncomingCallOpen(false);
+    toast({
+      title: "Đã từ chối cuộc gọi",
+    });
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-background">
       <ChatSidebar
@@ -91,7 +132,11 @@ export default function Chat() {
       <div className="flex-1 flex flex-col">
         {selectedConversation ? (
           <>
-            <ChatHeader conversation={selectedConversation} />
+            <ChatHeader 
+              conversation={selectedConversation}
+              onVideoCall={handleVideoCall}
+              onVoiceCall={handleVoiceCall}
+            />
             
             {loading ? (
               <div className="flex-1 flex items-center justify-center">
@@ -112,6 +157,28 @@ export default function Chat() {
           </div>
         )}
       </div>
+
+      {selectedConversation && (
+        <>
+          <VideoCallModal
+            open={videoCallOpen}
+            onOpenChange={setVideoCallOpen}
+            currentUserId={user?.id || ""}
+            targetUserId={selectedConversation.participants[0]?.user_id || ""}
+            targetUsername={selectedConversation.participants[0]?.profiles?.username || ""}
+            conversationId={selectedConversation.id}
+            isCaller={isCaller}
+          />
+
+          <IncomingCallModal
+            open={incomingCallOpen}
+            callerName={selectedConversation.participants[0]?.profiles?.username || ""}
+            callerAvatar={selectedConversation.participants[0]?.profiles?.avatar_url}
+            onAccept={handleAcceptCall}
+            onReject={handleRejectCall}
+          />
+        </>
+      )}
     </div>
   );
 }
