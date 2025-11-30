@@ -181,7 +181,7 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
             title: 'Bạn được nhắc đến',
             message: `${currentProfile?.username || 'Ai đó'} đã nhắc đến bạn trong một bình luận`,
             read: false,
-            link: '/feed'
+            link: '/'
           }));
         
         if (notifications.length > 0) {
@@ -210,7 +210,7 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
         title: 'Có bình luận mới',
         message: `${currentProfile?.username || 'Ai đó'} đã bình luận vào bài viết của bạn`,
         read: false,
-        link: '/feed'
+        link: '/'
       });
     }
 
