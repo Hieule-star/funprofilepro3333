@@ -16,10 +16,11 @@ export interface MediaFile {
 interface MediaUploadProps {
   onMediaChange: (media: MediaFile[]) => void;
   maxFiles?: number;
+  initialMedia?: MediaFile[];
 }
 
-export default function MediaUpload({ onMediaChange, maxFiles = 4 }: MediaUploadProps) {
-  const [media, setMedia] = useState<MediaFile[]>([]);
+export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia = [] }: MediaUploadProps) {
+  const [media, setMedia] = useState<MediaFile[]>(initialMedia);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [dragActive, setDragActive] = useState(false);
