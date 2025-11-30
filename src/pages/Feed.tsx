@@ -112,6 +112,7 @@ export default function Feed() {
                     <Post
                       key={post.id}
                       postId={post.id}
+                      userId={post.user_id}
                       author={username}
                       avatar={avatarInitials}
                       content={post.content || ''}

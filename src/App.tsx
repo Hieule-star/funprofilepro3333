@@ -16,6 +16,7 @@ import Friends from "./pages/Friends";
 import Chat from "./pages/Chat";
 import Game from "./pages/Game";
 import Profile from "./pages/Profile";
+import UserProfile from "./pages/UserProfile";
 import Wallet from "./pages/Wallet";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -83,6 +84,14 @@ const App = () => {
               }
             />
             <Route
+              path="/user/:userId"
+              element={
+                <ProtectedRoute>
+                  <UserProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/wallet"
               element={
                 <ProtectedRoute>
@@ -142,23 +151,31 @@ const App = () => {
                         </ProtectedRoute>
                       }
                     />
-                    <Route
-                      path="/profile"
-                      element={
-                        <ProtectedRoute>
-                          <Profile />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/wallet"
-                      element={
-                        <ProtectedRoute>
-                          <Wallet />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route path="*" element={<NotFound />} />
+                     <Route
+                       path="/profile"
+                       element={
+                         <ProtectedRoute>
+                           <Profile />
+                         </ProtectedRoute>
+                       }
+                     />
+                     <Route
+                       path="/user/:userId"
+                       element={
+                         <ProtectedRoute>
+                           <UserProfile />
+                         </ProtectedRoute>
+                       }
+                     />
+                     <Route
+                       path="/wallet"
+                       element={
+                         <ProtectedRoute>
+                           <Wallet />
+                         </ProtectedRoute>
+                       }
+                     />
+                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </WalletProvider>
               </AuthProvider>

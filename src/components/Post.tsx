@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import CommentList from "@/components/CommentList";
 import CommentInput from "@/components/CommentInput";
+import { useNavigate } from "react-router-dom";
 
 interface MediaItem {
   type: "image" | "video";
@@ -18,6 +19,7 @@ interface MediaItem {
 
 interface PostProps {
   postId?: string;
+  userId?: string;
   author: string;
   avatar: string;
   content: string;
@@ -30,6 +32,7 @@ interface PostProps {
 
 export default function Post({
   postId,
+  userId,
   author,
   avatar,
   content,
@@ -41,6 +44,7 @@ export default function Post({
 }: PostProps) {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(initialLikes);
   const [commentsCount, setCommentsCount] = useState(comments);
@@ -196,17 +200,30 @@ export default function Post({
     );
   };
 
+  const handleProfileClick = () => {
+    if (!userId) return;
+    
+    if (userId === user?.id) {
+      navigate('/profile');
+    } else {
+      navigate(`/user/${userId}`);
+    }
+  };
+
   return (
     <Card className="shadow-md transition-all hover:shadow-lg">
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
-        <div className="flex items-center gap-3">
+        <div 
+          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={handleProfileClick}
+        >
           <Avatar className="h-12 w-12 border-2 border-primary/20">
             <AvatarFallback className="bg-primary/10 text-primary font-semibold">
               {avatar}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold">{author}</p>
+            <p className="font-semibold hover:underline">{author}</p>
             <p className="text-xs text-muted-foreground">
               {formatDistanceToNow(timestamp, { addSuffix: true, locale: vi })}
             </p>
