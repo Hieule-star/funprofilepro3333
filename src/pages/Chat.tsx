@@ -68,25 +68,47 @@ export default function Chat() {
           filter: `conversation_id=eq.${selectedConversation.id}`,
         },
         async (payload) => {
-          console.log("Realtime payload:", payload.new);
+          console.log("Realtime payload.new:", payload.new);
           
-          // Add small delay to ensure database commit is complete
-          await new Promise(resolve => setTimeout(resolve, 100));
+          const newMessageData = payload.new as any;
           
-          const { data: newMessage } = await supabase
-            .from("messages")
-            .select(`
-              *,
-              sender:profiles(id, username, avatar_url)
-            `)
-            .eq("id", payload.new.id)
-            .single();
-
-          console.log("Fetched message:", newMessage);
-
-          if (newMessage) {
-            setMessages((prev) => [...prev, newMessage]);
+          // Check if message already exists (deduplication)
+          const messageExists = messages.some(m => m.id === newMessageData.id);
+          if (messageExists) {
+            console.log("Message already exists, skipping:", newMessageData.id);
+            return;
           }
+          
+          // Fetch only sender profile info
+          const { data: senderData } = await supabase
+            .from("profiles")
+            .select("id, username, avatar_url")
+            .eq("id", newMessageData.sender_id)
+            .single();
+          
+          console.log("Fetched sender data:", senderData);
+          
+          // Combine payload data with sender info
+          const newMessage = {
+            ...newMessageData,
+            sender: senderData || { 
+              id: newMessageData.sender_id, 
+              username: "Unknown", 
+              avatar_url: "" 
+            }
+          };
+          
+          console.log("Final message with sender:", newMessage);
+          
+          // Add to state with deduplication check
+          setMessages((prev) => {
+            const exists = prev.some(m => m.id === newMessage.id);
+            if (exists) {
+              console.log("Duplicate detected during state update, skipping");
+              return prev;
+            }
+            return [...prev, newMessage];
+          });
         }
       )
       .subscribe();
