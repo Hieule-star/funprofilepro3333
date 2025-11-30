@@ -81,52 +81,16 @@ export default function NewConversationModal({
     try {
       setLoading(true);
 
-      // Check if conversation already exists
-      const { data: existingParticipants } = await supabase
-        .from("conversation_participants")
-        .select("conversation_id")
-        .eq("user_id", user.id);
-
-      if (existingParticipants) {
-        for (const participant of existingParticipants) {
-          const { data: otherParticipants, count } = await supabase
-            .from("conversation_participants")
-            .select("user_id", { count: "exact" })
-            .eq("conversation_id", participant.conversation_id);
-
-          if (count === 2 && otherParticipants?.some(p => p.user_id === friendId)) {
-            // Conversation exists
-            onOpenChange(false);
-            if (onConversationCreated) {
-              onConversationCreated(participant.conversation_id);
-            }
-            return;
-          }
+      // Use RPC function to create conversation with participants
+      const { data: conversationId, error } = await supabase.rpc(
+        'create_conversation_with_participants',
+        {
+          current_user_id: user.id,
+          friend_id: friendId
         }
-      }
+      );
 
-      // Create new conversation
-      const { data: newConversation, error: convError } = await supabase
-        .from("conversations")
-        .insert({})
-        .select()
-        .single();
-
-      if (convError) throw convError;
-
-      // Add current user first (required for RLS policy)
-      const { error: userParticipantError } = await supabase
-        .from("conversation_participants")
-        .insert({ conversation_id: newConversation.id, user_id: user.id });
-
-      if (userParticipantError) throw userParticipantError;
-
-      // Then add friend (now current user is a participant, has permission)
-      const { error: friendParticipantError } = await supabase
-        .from("conversation_participants")
-        .insert({ conversation_id: newConversation.id, user_id: friendId });
-
-      if (friendParticipantError) throw friendParticipantError;
+      if (error) throw error;
 
       toast({
         title: "Thành công",
@@ -135,7 +99,7 @@ export default function NewConversationModal({
 
       onOpenChange(false);
       if (onConversationCreated) {
-        onConversationCreated(newConversation.id);
+        onConversationCreated(conversationId);
       }
     } catch (error) {
       console.error("Error creating conversation:", error);
