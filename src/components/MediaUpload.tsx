@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Image, Video, X, Upload, AlertCircle } from "lucide-react";
 import { uploadToR2, validateFile, formatFileSize, UploadProgress } from "@/lib/supabase-upload";
 import { useToast } from "@/hooks/use-toast";
+import { saveMediaToDraftDirect } from "@/hooks/useDraftPost";
 
 export interface MediaFile {
   file: File;
@@ -81,6 +82,14 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
 
         if (result.success && result.url) {
           uploadedFiles.push({ ...mediaFile, url: result.url });
+          
+          // Save to draft immediately - even if component unmounts
+          saveMediaToDraftDirect(
+            result.url,
+            mediaFile.type,
+            mediaFile.file.name,
+            mediaFile.file.size
+          );
         } else {
           toast({
             title: "Lỗi upload",

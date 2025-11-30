@@ -12,12 +12,13 @@ export default function CreatePost() {
   const [showMediaUpload, setShowMediaUpload] = useState(false);
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [isPosting, setIsPosting] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
   const { toast } = useToast();
   const { draft, hasDraft, saveDraft, clearDraft } = useDraftPost();
 
   // Restore draft on mount
   useEffect(() => {
-    if (hasDraft && draft) {
+    if (hasDraft && draft && !draftRestored) {
       setContent(draft.content);
       
       // Convert draft media to MediaFile format
@@ -34,12 +35,14 @@ export default function CreatePost() {
         setShowMediaUpload(true);
       }
       
+      setDraftRestored(true);
+      
       toast({
         title: "Đã khôi phục bản nháp",
         description: "Bài viết chưa đăng của bạn đã được khôi phục",
       });
     }
-  }, [hasDraft, draft, toast]);
+  }, [hasDraft, draft, draftRestored, toast]);
 
   const handleMediaChange = (newMedia: MediaFile[]) => {
     setMedia(newMedia);
@@ -141,25 +144,60 @@ export default function CreatePost() {
     <Card className="border-primary/20 shadow-md">
       <CardContent className="space-y-4 pt-6">
         {/* Draft notification banner */}
-        {hasDraft && (
+        {hasDraft && draftRestored && (
           <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 flex items-center justify-between">
             <span className="text-sm text-yellow-800 dark:text-yellow-200">
               📝 Bản nháp đã được khôi phục
             </span>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => {
-                clearDraft();
-                setContent("");
-                setMedia([]);
-                setShowMediaUpload(false);
-              }}
-              className="h-7 gap-1"
-            >
-              <X className="h-3 w-3" />
-              Xóa
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  // Manual restore
+                  const stored = localStorage.getItem('post_draft');
+                  if (stored) {
+                    try {
+                      const parsed = JSON.parse(stored);
+                      setContent(parsed.content || "");
+                      const restoredMedia = (parsed.media || []).map((m: any) => ({
+                        file: new File([], m.name, { type: m.type === 'image' ? 'image/*' : 'video/*' }),
+                        preview: m.url,
+                        type: m.type,
+                        url: m.url,
+                      }));
+                      setMedia(restoredMedia);
+                      if (restoredMedia.length > 0) {
+                        setShowMediaUpload(true);
+                      }
+                      toast({ title: "Đã tải lại bản nháp" });
+                    } catch (error) {
+                      toast({ title: "Không thể tải bản nháp", variant: "destructive" });
+                    }
+                  } else {
+                    toast({ title: "Không có bản nháp", variant: "destructive" });
+                  }
+                }}
+                className="h-7 gap-1"
+              >
+                🔄 Tải lại
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  clearDraft();
+                  setContent("");
+                  setMedia([]);
+                  setShowMediaUpload(false);
+                  setDraftRestored(false);
+                }}
+                className="h-7 gap-1"
+              >
+                <X className="h-3 w-3" />
+                Xóa
+              </Button>
+            </div>
           </div>
         )}
 

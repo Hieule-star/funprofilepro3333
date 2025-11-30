@@ -16,6 +16,24 @@ export interface DraftPost {
   savedAt: number;
 }
 
+// Standalone function to save media directly to draft without hook state
+export function saveMediaToDraftDirect(mediaUrl: string, type: 'image' | 'video', name: string, size: number) {
+  try {
+    const existing = localStorage.getItem(DRAFT_KEY);
+    const draft: DraftPost = existing 
+      ? JSON.parse(existing) 
+      : { content: '', media: [], savedAt: Date.now() };
+    
+    // Add new media to draft
+    draft.media.push({ url: mediaUrl, type, name, size });
+    draft.savedAt = Date.now();
+    
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch (error) {
+    console.error("Error saving media to draft:", error);
+  }
+}
+
 export function useDraftPost() {
   const [draft, setDraft] = useState<DraftPost | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
