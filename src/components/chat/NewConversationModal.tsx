@@ -114,15 +114,19 @@ export default function NewConversationModal({
 
       if (convError) throw convError;
 
-      // Add participants
-      const { error: participantError } = await supabase
+      // Add current user first (required for RLS policy)
+      const { error: userParticipantError } = await supabase
         .from("conversation_participants")
-        .insert([
-          { conversation_id: newConversation.id, user_id: user.id },
-          { conversation_id: newConversation.id, user_id: friendId },
-        ]);
+        .insert({ conversation_id: newConversation.id, user_id: user.id });
 
-      if (participantError) throw participantError;
+      if (userParticipantError) throw userParticipantError;
+
+      // Then add friend (now current user is a participant, has permission)
+      const { error: friendParticipantError } = await supabase
+        .from("conversation_participants")
+        .insert({ conversation_id: newConversation.id, user_id: friendId });
+
+      if (friendParticipantError) throw friendParticipantError;
 
       toast({
         title: "Thành công",
