@@ -1,15 +1,15 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, MessageSquare, Heart, Users, Award, Settings, Loader2 } from "lucide-react";
+import { TrendingUp, Heart, Users, Award, Loader2, UserPlus, UserCheck, MessageCircle, Clock } from "lucide-react";
 import Post from "@/components/Post";
-import EditProfileModal from "@/components/EditProfileModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useParams, useNavigate } from "react-router-dom";
 
 interface MediaItem {
   type: "image" | "video";
@@ -34,23 +34,59 @@ interface StatsData {
   likesCount: number;
 }
 
-export default function Profile() {
-  const { user, profile } = useAuth();
+interface UserProfile {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
+type FriendshipStatus = "none" | "pending_sent" | "pending_received" | "accepted";
+
+export default function UserProfile() {
+  const { userId } = useParams<{ userId: string }>();
+  const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<PostData[]>([]);
   const [stats, setStats] = useState<StatsData>({
     postsCount: 0,
     friendsCount: 0,
     likesCount: 0,
   });
+  const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>("none");
   const [loading, setLoading] = useState(true);
-  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-  const fetchUserData = async () => {
-    if (!user) return;
+  useEffect(() => {
+    // Redirect to own profile if viewing own user ID
+    if (userId === user?.id) {
+      navigate("/profile");
+      return;
+    }
+    
+    if (userId) {
+      fetchUserProfile();
+      fetchFriendshipStatus();
+    }
+  }, [userId, user]);
+
+  const fetchUserProfile = async () => {
+    if (!userId) return;
 
     try {
       setLoading(true);
+
+      // Fetch user profile
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      if (profileError) throw profileError;
+      setProfile(profileData);
 
       // Fetch user posts
       const { data: postsData, error: postsError } = await supabase
@@ -66,7 +102,7 @@ export default function Profile() {
             avatar_url
           )
         `)
-        .eq("user_id", user.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
 
       if (postsError) throw postsError;
@@ -75,14 +111,14 @@ export default function Profile() {
       // Calculate stats
       const postsCount = postsData?.length || 0;
 
-      // Count friends (accepted friendships)
+      // Count friends
       const { count: friendsCount } = await supabase
         .from("friendships")
         .select("*", { count: "exact", head: true })
         .eq("status", "accepted")
-        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`);
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
 
-      // Count likes on user's posts
+      // Count likes
       const postIds = postsData?.map(p => p.id) || [];
       let likesCount = 0;
       if (postIds.length > 0) {
@@ -99,10 +135,10 @@ export default function Profile() {
         likesCount,
       });
     } catch (error) {
-      console.error("Error fetching user data:", error);
+      console.error("Error fetching user profile:", error);
       toast({
         title: "Lỗi",
-        description: "Không thể tải dữ liệu profile",
+        description: "Không thể tải profile người dùng",
         variant: "destructive",
       });
     } finally {
@@ -110,9 +146,240 @@ export default function Profile() {
     }
   };
 
-  useEffect(() => {
-    fetchUserData();
-  }, [user]);
+  const fetchFriendshipStatus = async () => {
+    if (!userId || !user) return;
+
+    const { data } = await supabase
+      .from("friendships")
+      .select("*")
+      .or(`user_id.eq.${user.id},friend_id.eq.${userId}`)
+      .or(`user_id.eq.${userId},friend_id.eq.${user.id}`)
+      .single();
+
+    if (data) {
+      if (data.status === "accepted") {
+        setFriendshipStatus("accepted");
+      } else if (data.status === "pending") {
+        if (data.user_id === user.id) {
+          setFriendshipStatus("pending_sent");
+        } else {
+          setFriendshipStatus("pending_received");
+        }
+      }
+    } else {
+      setFriendshipStatus("none");
+    }
+  };
+
+  const handleSendFriendRequest = async () => {
+    if (!userId || !user) return;
+
+    try {
+      setActionLoading(true);
+      const { error } = await supabase
+        .from("friendships")
+        .insert({
+          user_id: user.id,
+          friend_id: userId,
+          status: "pending",
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Đã gửi lời mời",
+        description: "Lời mời kết bạn đã được gửi",
+      });
+      setFriendshipStatus("pending_sent");
+    } catch (error) {
+      console.error("Error sending friend request:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể gửi lời mời kết bạn",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAcceptFriendRequest = async () => {
+    if (!userId || !user) return;
+
+    try {
+      setActionLoading(true);
+      const { error } = await supabase
+        .from("friendships")
+        .update({ status: "accepted" })
+        .eq("user_id", userId)
+        .eq("friend_id", user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Đã chấp nhận",
+        description: "Bạn đã trở thành bạn bè",
+      });
+      setFriendshipStatus("accepted");
+    } catch (error) {
+      console.error("Error accepting friend request:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể chấp nhận lời mời",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancelFriendRequest = async () => {
+    if (!userId || !user) return;
+
+    try {
+      setActionLoading(true);
+      const { error } = await supabase
+        .from("friendships")
+        .delete()
+        .or(`user_id.eq.${user.id},friend_id.eq.${userId}`)
+        .or(`user_id.eq.${userId},friend_id.eq.${user.id}`);
+
+      if (error) throw error;
+
+      toast({
+        title: "Đã hủy",
+        description: "Đã hủy lời mời kết bạn",
+      });
+      setFriendshipStatus("none");
+    } catch (error) {
+      console.error("Error canceling friend request:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể hủy lời mời",
+        variant: "destructive",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleStartChat = async () => {
+    if (!userId || !user) return;
+
+    try {
+      // Check if conversation already exists
+      const { data: existingConversations } = await supabase
+        .from("conversation_participants")
+        .select("conversation_id")
+        .eq("user_id", user.id);
+
+      if (existingConversations && existingConversations.length > 0) {
+        const conversationIds = existingConversations.map(c => c.conversation_id);
+        
+        const { data: targetParticipants } = await supabase
+          .from("conversation_participants")
+          .select("conversation_id")
+          .eq("user_id", userId)
+          .in("conversation_id", conversationIds);
+
+        if (targetParticipants && targetParticipants.length > 0) {
+          // Conversation exists, navigate to chat
+          navigate("/chat");
+          return;
+        }
+      }
+
+      // Create new conversation
+      const { data: newConversation, error: convError } = await supabase
+        .from("conversations")
+        .insert({})
+        .select()
+        .single();
+
+      if (convError) throw convError;
+
+      // Add both participants
+      const { error: participantsError } = await supabase
+        .from("conversation_participants")
+        .insert([
+          { conversation_id: newConversation.id, user_id: user.id },
+          { conversation_id: newConversation.id, user_id: userId },
+        ]);
+
+      if (participantsError) throw participantsError;
+
+      toast({
+        title: "Thành công",
+        description: "Đã tạo cuộc trò chuyện mới",
+      });
+      navigate("/chat");
+    } catch (error) {
+      console.error("Error starting chat:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể bắt đầu trò chuyện",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const renderActionButton = () => {
+    switch (friendshipStatus) {
+      case "none":
+        return (
+          <Button
+            className="gap-2"
+            onClick={handleSendFriendRequest}
+            disabled={actionLoading}
+          >
+            <UserPlus className="h-4 w-4" />
+            Kết bạn
+          </Button>
+        );
+      case "pending_sent":
+        return (
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleCancelFriendRequest}
+            disabled={actionLoading}
+          >
+            <Clock className="h-4 w-4" />
+            Đã gửi
+          </Button>
+        );
+      case "pending_received":
+        return (
+          <div className="flex gap-2">
+            <Button
+              className="gap-2"
+              onClick={handleAcceptFriendRequest}
+              disabled={actionLoading}
+            >
+              <UserCheck className="h-4 w-4" />
+              Chấp nhận
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleCancelFriendRequest}
+              disabled={actionLoading}
+            >
+              Từ chối
+            </Button>
+          </div>
+        );
+      case "accepted":
+        return (
+          <Button
+            className="gap-2"
+            onClick={handleStartChat}
+          >
+            <MessageCircle className="h-4 w-4" />
+            Nhắn tin
+          </Button>
+        );
+    }
+  };
 
   const getAvatarFallback = () => {
     if (profile?.username) {
@@ -136,11 +403,11 @@ export default function Profile() {
     );
   }
 
-  if (!user || !profile) {
+  if (!profile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="p-6">
-          <p className="text-muted-foreground">Vui lòng đăng nhập để xem profile</p>
+          <p className="text-muted-foreground">Không tìm thấy người dùng</p>
         </Card>
       </div>
     );
@@ -184,13 +451,7 @@ export default function Profile() {
                     )}
                   </div>
                 </div>
-                <Button 
-                  className="gap-2"
-                  onClick={() => setEditModalOpen(true)}
-                >
-                  <Settings className="h-4 w-4" />
-                  Chỉnh sửa
-                </Button>
+                {renderActionButton()}
               </div>
             </CardContent>
           </Card>
@@ -285,15 +546,6 @@ export default function Profile() {
           </Tabs>
         </div>
       </div>
-
-      <EditProfileModal
-        open={editModalOpen}
-        onOpenChange={setEditModalOpen}
-        currentUsername={profile.username || ""}
-        currentBio={profile.bio || ""}
-        currentAvatarUrl={profile.avatar_url || ""}
-        onProfileUpdate={fetchUserData}
-      />
     </div>
   );
 }
