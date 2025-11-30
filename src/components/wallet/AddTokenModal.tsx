@@ -66,6 +66,13 @@ const POPULAR_TOKENS = {
       decimals: 18,
       logo: "🥞",
     },
+    {
+      name: "CAMLY COIN",
+      symbol: "CAMLY",
+      address: "0x0910320181889fefde0bb1ca63962b0a8882e413",
+      decimals: 9,
+      logo: "😊",
+    },
   ],
   1: [ // Ethereum
     {
