@@ -29,6 +29,7 @@ interface PostProps {
   shares: number;
   media?: MediaItem[];
   autoExpandComments?: boolean;
+  targetCommentId?: string | null;
 }
 
 export default function Post({
@@ -43,6 +44,7 @@ export default function Post({
   shares,
   media,
   autoExpandComments = false,
+  targetCommentId = null,
 }: PostProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -287,6 +289,7 @@ export default function Post({
             <CommentList 
               postId={postId} 
               onReply={(commentId, username) => setReplyTo({ commentId, username })}
+              targetCommentId={targetCommentId}
             />
             <CommentInput 
               postId={postId} 
