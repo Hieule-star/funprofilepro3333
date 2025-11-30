@@ -13,8 +13,13 @@ interface Stats {
   camlyBalance: number;
 }
 
-export default function HonorBoard() {
+interface HonorBoardProps {
+  userId?: string;
+}
+
+export default function HonorBoard({ userId }: HonorBoardProps = {}) {
   const { user } = useAuth();
+  const targetUserId = userId || user?.id;
   const [stats, setStats] = useState<Stats>({
     posts: 0,
     comments: 0,
@@ -25,7 +30,7 @@ export default function HonorBoard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!targetUserId) return;
 
     const fetchStats = async () => {
       try {
@@ -33,32 +38,32 @@ export default function HonorBoard() {
         const { count: postsCount } = await supabase
           .from("posts")
           .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id);
+          .eq("user_id", targetUserId);
 
         // Fetch comments count
         const { count: commentsCount } = await supabase
           .from("comments")
           .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id);
+          .eq("user_id", targetUserId);
 
         // Fetch likes count
         const { count: likesCount } = await supabase
           .from("post_likes")
           .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id);
+          .eq("user_id", targetUserId);
 
         // Fetch friends count
         const { count: friendsCount } = await supabase
           .from("friendships")
           .select("*", { count: "exact", head: true })
-          .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+          .or(`user_id.eq.${targetUserId},friend_id.eq.${targetUserId}`)
           .eq("status", "accepted");
 
         // Fetch CAMLY balance
         const { data: rewardsData } = await supabase
           .from("user_rewards")
           .select("camly_balance")
-          .eq("user_id", user.id)
+          .eq("user_id", targetUserId)
           .maybeSingle();
 
         setStats({
@@ -86,7 +91,7 @@ export default function HonorBoard() {
           event: "*",
           schema: "public",
           table: "user_rewards",
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${targetUserId}`,
         },
         (payload) => {
           if (payload.new && "camly_balance" in payload.new) {
@@ -102,7 +107,7 @@ export default function HonorBoard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user]);
+  }, [targetUserId]);
 
   const statItems = [
     { icon: TrendingUp, label: "POSTS", value: stats.posts, color: "text-primary" },
