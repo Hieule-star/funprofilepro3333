@@ -28,6 +28,7 @@ interface PostProps {
   comments: number;
   shares: number;
   media?: MediaItem[];
+  autoExpandComments?: boolean;
 }
 
 export default function Post({
@@ -41,6 +42,7 @@ export default function Post({
   comments,
   shares,
   media,
+  autoExpandComments = false,
 }: PostProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -83,6 +85,13 @@ export default function Post({
       supabase.removeChannel(channel);
     };
   }, [postId]);
+
+  // Auto-expand comments when coming from notification
+  useEffect(() => {
+    if (autoExpandComments) {
+      setShowComments(true);
+    }
+  }, [autoExpandComments]);
 
   const checkIfLiked = async () => {
     if (!postId || !user) return;
@@ -211,7 +220,12 @@ export default function Post({
   };
 
   return (
-    <Card className="shadow-md transition-all hover:shadow-lg">
+    <Card 
+      id={postId ? `post-${postId}` : undefined}
+      className={`shadow-md transition-all hover:shadow-lg ${
+        autoExpandComments ? 'ring-2 ring-primary' : ''
+      }`}
+    >
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
         <div 
           className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"

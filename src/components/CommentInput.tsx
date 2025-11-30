@@ -173,15 +173,15 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
       
       // Create notifications for mentioned users (exclude self)
       if (mentionedUsers && mentionedUsers.length > 0) {
-        const notifications = mentionedUsers
-          .filter(u => u.id !== user.id)
-          .map(mentionedUser => ({
+          const notifications = mentionedUsers
+            .filter(u => u.id !== user.id)
+            .map(mentionedUser => ({
             user_id: mentionedUser.id,
             type: 'mention',
             title: 'Bạn được nhắc đến',
             message: `${currentProfile?.username || 'Ai đó'} đã nhắc đến bạn trong một bình luận`,
             read: false,
-            link: '/'
+            link: `/?postId=${postId}`
           }));
         
         if (notifications.length > 0) {
@@ -210,7 +210,7 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
         title: 'Có bình luận mới',
         message: `${currentProfile?.username || 'Ai đó'} đã bình luận vào bài viết của bạn`,
         read: false,
-        link: '/'
+        link: `/?postId=${postId}`
       });
     }
 
