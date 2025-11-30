@@ -79,9 +79,15 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
       });
 
       if (error) throw error;
+      
+      if (!data.presignedUrl) {
+        throw new Error("No presigned URL received from server");
+      }
+
+      console.log("Uploading to R2:", data.presignedUrl);
 
       // Upload to R2
-      const uploadResponse = await fetch(data.uploadUrl, {
+      const uploadResponse = await fetch(data.presignedUrl, {
         method: "PUT",
         body: file,
         headers: {
