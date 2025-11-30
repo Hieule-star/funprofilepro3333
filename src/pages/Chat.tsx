@@ -89,17 +89,25 @@ export default function Chat() {
     };
   }, [selectedConversation]);
 
-  const handleSendMessage = async (content: string) => {
-    if (!selectedConversation || !user || !content.trim()) return;
+  const handleSendMessage = async (content: string, mediaUrl?: string, mediaType?: string) => {
+    if (!selectedConversation || !user) return;
+    if (!content.trim() && !mediaUrl) return;
 
     const { error } = await supabase.from("messages").insert({
       conversation_id: selectedConversation.id,
       sender_id: user.id,
-      content: content.trim(),
+      content: content.trim() || "",
+      media_url: mediaUrl,
+      media_type: mediaType,
     });
 
     if (error) {
       console.error("Error sending message:", error);
+      toast({
+        title: "Lỗi gửi tin nhắn",
+        description: "Không thể gửi tin nhắn. Vui lòng thử lại.",
+        variant: "destructive"
+      });
     }
   };
 
