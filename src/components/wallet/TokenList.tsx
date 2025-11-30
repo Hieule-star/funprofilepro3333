@@ -6,6 +6,7 @@ import { useState } from "react";
 import TokenItem from "./TokenItem";
 import AddTokenModal from "./AddTokenModal";
 import AutoDetectModal from "./AutoDetectModal";
+import SendModal from "./SendModal";
 import { useBalance, useReadContract } from "wagmi";
 import { erc20Abi } from "viem";
 import { useTokenPrice, useTokenPriceByContract } from "@/hooks/useTokenPrice";
@@ -19,6 +20,8 @@ export default function TokenList() {
   const [isAddTokenOpen, setIsAddTokenOpen] = useState(false);
   const [isAutoDetectOpen, setIsAutoDetectOpen] = useState(false);
   const [detectedTokens, setDetectedTokens] = useState<any[]>([]);
+  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
+  const [selectedTokenForSend, setSelectedTokenForSend] = useState<any>(null);
   const { detectTokens, isDetecting } = useAutoDetect();
 
   // Get native token balance
@@ -159,6 +162,16 @@ export default function TokenList() {
             balance={nativeBalance ? formatBalance(Number(nativeBalance.value) / Math.pow(10, nativeBalance.decimals)) : "0"}
             rawBalance={nativeBalance ? Number(nativeBalance.value) / Math.pow(10, nativeBalance.decimals) : 0}
             usdValue={nativePrice}
+            onSend={() => {
+              setSelectedTokenForSend({
+                symbol: chainId === 56 ? "BNB" : "ETH",
+                name: chainId === 56 ? "BNB" : "Ethereum",
+                balance: nativeBalance ? Number(nativeBalance.value) / Math.pow(10, nativeBalance.decimals) : 0,
+                decimals: 18,
+                contract_address: undefined,
+              });
+              setIsSendModalOpen(true);
+            }}
           />
 
           {/* Custom Tokens */}
@@ -173,6 +186,17 @@ export default function TokenList() {
                 logo={token.logo_url}
                 userAddress={address as `0x${string}`}
                 chainId={chainId}
+                onSend={() => {
+                  setSelectedTokenForSend({
+                    symbol: token.symbol,
+                    name: token.name,
+                    balance: 0,
+                    decimals: token.decimals,
+                    contract_address: token.contract_address,
+                    logo_url: token.logo_url,
+                  });
+                  setIsSendModalOpen(true);
+                }}
               />
             ))
           ) : (
@@ -202,6 +226,16 @@ export default function TokenList() {
         isLoading={isDetecting}
         onAddSelected={handleAddSelectedTokens}
       />
+
+      <SendModal
+        isOpen={isSendModalOpen}
+        onClose={() => {
+          setIsSendModalOpen(false);
+          setSelectedTokenForSend(null);
+        }}
+        customTokens={customTokens}
+        preSelectedToken={selectedTokenForSend}
+      />
     </>
   );
 }
@@ -215,6 +249,7 @@ function CustomTokenItem({
   logo,
   userAddress,
   chainId,
+  onSend,
 }: {
   address: string;
   name: string;
@@ -223,6 +258,7 @@ function CustomTokenItem({
   logo: string | null;
   userAddress: `0x${string}`;
   chainId?: number;
+  onSend?: () => void;
 }) {
   const { data: tokenBalance, isLoading } = useReadContract({
     address: address as `0x${string}`,
@@ -247,6 +283,7 @@ function CustomTokenItem({
       rawBalance={rawBalanceValue}
       usdValue={tokenPrice}
       isLoading={isLoading}
+      onSend={onSend}
     />
   );
 }

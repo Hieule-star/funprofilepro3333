@@ -9,30 +9,106 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useWallet } from "@/contexts/WalletContext";
-import { useSendTransaction, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther, isAddress } from "viem";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useWallet, CustomToken } from "@/contexts/WalletContext";
+import { useSendTransaction, useWaitForTransactionReceipt, useWriteContract, useReadContract } from "wagmi";
+import { parseEther, isAddress, parseUnits } from "viem";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+const ERC20_ABI = [
+  {
+    name: 'transfer',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+] as const;
+
 interface SendModalProps {
   isOpen: boolean;
   onClose: () => void;
+  customTokens?: CustomToken[];
+  preSelectedToken?: {
+    symbol: string;
+    name: string;
+    contract_address?: string;
+    decimals: number;
+    balance: number;
+    logo_url?: string | null;
+  };
 }
 
-export default function SendModal({ isOpen, onClose }: SendModalProps) {
+export default function SendModal({ isOpen, onClose, customTokens = [], preSelectedToken }: SendModalProps) {
   const { address, balance, chainId } = useWallet();
   const [recipientAddress, setRecipientAddress] = useState("");
   const [amount, setAmount] = useState("");
   const [isValidAddress, setIsValidAddress] = useState(true);
   const [hasHandledSuccess, setHasHandledSuccess] = useState(false);
+  const [selectedTokenId, setSelectedTokenId] = useState<string>("native");
+
+  // Get selected token details
+  const selectedToken = selectedTokenId === "native" 
+    ? {
+        symbol: chainId === 56 ? "BNB" : "ETH",
+        name: chainId === 56 ? "BNB" : "Ethereum",
+        balance: balance || "0",
+        decimals: 18,
+        contract_address: undefined as string | undefined,
+      }
+    : customTokens.find(t => `${t.contract_address}-${t.chain_id}` === selectedTokenId);
+
+  // Read ERC20 balance for selected token
+  const { data: erc20Balance } = useReadContract({
+    address: selectedToken?.contract_address as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'balanceOf',
+    args: address ? [address as `0x${string}`] : undefined,
+    query: {
+      enabled: !!selectedToken?.contract_address && !!address,
+    },
+  });
+
+  const tokenBalance = selectedToken?.contract_address && erc20Balance
+    ? (Number(erc20Balance) / Math.pow(10, selectedToken.decimals)).toString()
+    : 'balance' in selectedToken ? selectedToken.balance : (balance || "0");
 
   const { data: hash, isPending, sendTransaction } = useSendTransaction();
+  const { data: erc20Hash, isPending: isErc20Pending, writeContract } = useWriteContract();
 
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
+    hash: hash || erc20Hash,
   });
+
+  // Set pre-selected token on mount
+  useEffect(() => {
+    if (preSelectedToken && isOpen) {
+      if (preSelectedToken.contract_address) {
+        const tokenId = `${preSelectedToken.contract_address}-${chainId}`;
+        setSelectedTokenId(tokenId);
+      } else {
+        setSelectedTokenId("native");
+      }
+    }
+  }, [preSelectedToken, isOpen, chainId]);
 
   const handleAddressChange = (value: string) => {
     setRecipientAddress(value);
@@ -44,7 +120,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
   };
 
   const handleSend = async () => {
-    if (!address || !recipientAddress || !amount || !isAddress(recipientAddress)) {
+    if (!address || !recipientAddress || !amount || !isAddress(recipientAddress) || !selectedToken) {
       toast({
         title: "Lỗi",
         description: "Vui lòng nhập đầy đủ thông tin hợp lệ",
@@ -54,7 +130,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     }
 
     const amountFloat = parseFloat(amount);
-    const balanceFloat = parseFloat(balance || "0");
+    const balanceFloat = parseFloat(tokenBalance);
 
     if (amountFloat <= 0) {
       toast({
@@ -75,10 +151,24 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
     }
 
     try {
-      sendTransaction({
-        to: recipientAddress as `0x${string}`,
-        value: parseEther(amount),
-      });
+      if (selectedToken.contract_address) {
+        // Send ERC20 token
+        writeContract({
+          address: selectedToken.contract_address as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'transfer',
+          args: [
+            recipientAddress as `0x${string}`,
+            parseUnits(amount, selectedToken.decimals),
+          ],
+        } as any); // Type assertion for wagmi v2 compatibility
+      } else {
+        // Send native token
+        sendTransaction({
+          to: recipientAddress as `0x${string}`,
+          value: parseEther(amount),
+        });
+      }
     } catch (error) {
       console.error("Send error:", error);
       toast({
@@ -128,7 +218,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
 
   // Save transaction to database when confirmed
   const saveTransaction = async (txHash: string) => {
-    if (!address || !chainId) return;
+    if (!address || !chainId || !selectedToken) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -143,9 +233,6 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
 
     if (!wallet) return;
 
-    // Determine token symbol based on chain
-    const tokenSymbol = chainId === 56 ? "BNB" : "ETH";
-
     const { error } = await supabase.from("transactions").insert({
       user_id: user.id,
       wallet_id: wallet.id,
@@ -153,7 +240,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       type: "send",
       from_address: address,
       to_address: recipientAddress,
-      token_symbol: tokenSymbol,
+      token_symbol: selectedToken.symbol,
       amount: amount,
     });
 
@@ -164,14 +251,15 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
 
   // Handle successful transaction
   useEffect(() => {
-    if (isSuccess && hash && !hasHandledSuccess) {
+    const txHash = hash || erc20Hash;
+    if (isSuccess && txHash && !hasHandledSuccess) {
       setHasHandledSuccess(true);
       
       // Fire confetti celebration
       fireConfetti();
       
       // Save transaction
-      saveTransaction(hash);
+      saveTransaction(txHash);
       
       // Show success toast
       toast({
@@ -183,30 +271,59 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
       setTimeout(() => {
         setRecipientAddress("");
         setAmount("");
+        setSelectedTokenId("native");
         onClose();
       }, 1500);
     }
-  }, [isSuccess, hash, hasHandledSuccess]);
+  }, [isSuccess, hash, erc20Hash, hasHandledSuccess]);
 
   const handleClose = () => {
-    if (!isPending && !isConfirming) {
+    if (!isPending && !isConfirming && !isErc20Pending) {
       setRecipientAddress("");
       setAmount("");
       setHasHandledSuccess(false);
+      setSelectedTokenId("native");
       onClose();
     }
   };
 
-  const chainSymbol = chainId === 56 ? "BNB" : "ETH";
+  const isProcessing = isPending || isConfirming || isErc20Pending;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Gửi {chainSymbol}</DialogTitle>
+          <DialogTitle>Gửi Token</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="token">Chọn Token</Label>
+            <Select value={selectedTokenId} onValueChange={setSelectedTokenId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="native">
+                  {chainId === 56 ? "🟡 BNB" : "🔷 ETH"}
+                </SelectItem>
+                {customTokens
+                  .filter(token => token.chain_id === chainId)
+                  .map((token) => (
+                    <SelectItem 
+                      key={`${token.contract_address}-${token.chain_id}`}
+                      value={`${token.contract_address}-${token.chain_id}`}
+                    >
+                      {token.symbol} - {token.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Số dư: {tokenBalance} {selectedToken?.symbol}
+            </p>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="recipient">Địa chỉ người nhận</Label>
             <Input
@@ -222,7 +339,7 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount">Số lượng {chainSymbol}</Label>
+            <Label htmlFor="amount">Số lượng {selectedToken?.symbol}</Label>
             <Input
               id="amount"
               type="number"
@@ -231,16 +348,13 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
-            <p className="text-sm text-muted-foreground">
-              Số dư: {balance} {chainSymbol}
-            </p>
           </div>
 
           <div className="flex gap-2 pt-4">
             <Button
               variant="outline"
               onClick={handleClose}
-              disabled={isPending || isConfirming}
+              disabled={isProcessing}
               className="flex-1"
             >
               Hủy
@@ -251,15 +365,14 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
                 !recipientAddress ||
                 !amount ||
                 !isValidAddress ||
-                isPending ||
-                isConfirming
+                isProcessing
               }
               className="flex-1"
             >
-              {isPending || isConfirming ? (
+              {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isPending ? "Đang xác nhận..." : "Đang xử lý..."}
+                  {isPending || isErc20Pending ? "Đang xác nhận..." : "Đang xử lý..."}
                 </>
               ) : (
                 "Gửi"
@@ -267,9 +380,9 @@ export default function SendModal({ isOpen, onClose }: SendModalProps) {
             </Button>
           </div>
 
-          {hash && (
+          {(hash || erc20Hash) && (
             <p className="text-sm text-muted-foreground break-all">
-              Transaction hash: {hash}
+              Transaction hash: {hash || erc20Hash}
             </p>
           )}
         </div>

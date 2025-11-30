@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
 
-interface CustomToken {
+export interface CustomToken {
   id: string;
   contract_address: string;
   name: string;

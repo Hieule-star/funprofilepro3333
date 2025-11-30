@@ -11,7 +11,7 @@ export default function QuickActions() {
   const [isReceiveOpen, setIsReceiveOpen] = useState(false);
   const [isSendOpen, setIsSendOpen] = useState(false);
   const [isSwapOpen, setIsSwapOpen] = useState(false);
-  const { isConnected } = useWallet();
+  const { isConnected, customTokens } = useWallet();
 
   if (!isConnected) {
     return null;
@@ -61,6 +61,7 @@ export default function QuickActions() {
       <SendModal
         isOpen={isSendOpen}
         onClose={() => setIsSendOpen(false)}
+        customTokens={customTokens}
       />
 
       <SwapModal

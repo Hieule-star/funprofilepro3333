@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Send } from "lucide-react";
 
 interface TokenItemProps {
   icon?: string; // Emoji or image URL
@@ -11,9 +12,10 @@ interface TokenItemProps {
   usdValue?: number | null;
   isLoading?: boolean;
   logoUrl?: string | null;
+  onSend?: () => void;
 }
 
-export default function TokenItem({ icon, name, symbol, balance, rawBalance, usdValue, isLoading, logoUrl }: TokenItemProps) {
+export default function TokenItem({ icon, name, symbol, balance, rawBalance, usdValue, isLoading, logoUrl, onSend }: TokenItemProps) {
   const balanceNum = rawBalance ?? parseFloat(balance.replace(/,/g, ''));
   const totalUsdValue = usdValue && !isNaN(balanceNum) ? balanceNum * usdValue : null;
   
@@ -43,8 +45,8 @@ export default function TokenItem({ icon, name, symbol, balance, rawBalance, usd
   return (
     <Card className="border-primary/10 hover:border-primary/30 transition-colors">
       <CardContent className="pt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 flex-1">
             {isImageUrl ? (
               <img 
                 src={displayIcon} 
@@ -66,7 +68,7 @@ export default function TokenItem({ icon, name, symbol, balance, rawBalance, usd
               <p className="text-sm text-muted-foreground">{symbol}</p>
             </div>
           </div>
-          <div className="text-right">
+          <div className="text-right flex-1">
             <p className="font-semibold text-lg">{balance}</p>
             <p className="text-xs text-muted-foreground">{symbol}</p>
             {usdValue !== null && usdValue !== undefined && (
@@ -87,6 +89,17 @@ export default function TokenItem({ icon, name, symbol, balance, rawBalance, usd
               </p>
             )}
           </div>
+          {onSend && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={onSend}
+              className="h-9 w-9 shrink-0"
+              title="Gửi token"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>
