@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Heart, Users, TrendingUp, Award } from "lucide-react";
+import { MessageSquare, Heart, Users, TrendingUp, Award, Gamepad2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import logo from "@/assets/logo.jpg";
@@ -10,6 +10,7 @@ interface Stats {
   comments: number;
   reactions: number;
   friends: number;
+  games: number;
   camlyBalance: number;
 }
 
@@ -25,6 +26,7 @@ export default function HonorBoard({ userId }: HonorBoardProps = {}) {
     comments: 0,
     reactions: 0,
     friends: 0,
+    games: 0,
     camlyBalance: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -59,6 +61,12 @@ export default function HonorBoard({ userId }: HonorBoardProps = {}) {
           .or(`user_id.eq.${targetUserId},friend_id.eq.${targetUserId}`)
           .eq("status", "accepted");
 
+        // Fetch games count
+        const { count: gamesCount } = await supabase
+          .from("game_scores")
+          .select("*", { count: "exact", head: true })
+          .eq("user_id", targetUserId);
+
         // Fetch CAMLY balance
         const { data: rewardsData } = await supabase
           .from("user_rewards")
@@ -71,6 +79,7 @@ export default function HonorBoard({ userId }: HonorBoardProps = {}) {
           comments: commentsCount || 0,
           reactions: likesCount || 0,
           friends: friendsCount || 0,
+          games: gamesCount || 0,
           camlyBalance: rewardsData?.camly_balance || 0,
         });
       } catch (error) {
@@ -114,6 +123,7 @@ export default function HonorBoard({ userId }: HonorBoardProps = {}) {
     { icon: MessageSquare, label: "COMMENTS", value: stats.comments, color: "text-info" },
     { icon: Heart, label: "REACTIONS", value: stats.reactions, color: "text-destructive" },
     { icon: Users, label: "FRIENDS", value: stats.friends, color: "text-secondary" },
+    { icon: Gamepad2, label: "GAMES", value: stats.games, color: "text-purple-500" },
     { 
       icon: Award, 
       label: "CAMLY COIN", 
