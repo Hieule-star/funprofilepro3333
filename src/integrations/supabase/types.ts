@@ -200,6 +200,41 @@ export type Database = {
           },
         ]
       }
+      daily_checkins: {
+        Row: {
+          bonus_awarded: boolean
+          checkin_date: string
+          created_at: string
+          id: string
+          streak_count: number
+          user_id: string
+        }
+        Insert: {
+          bonus_awarded?: boolean
+          checkin_date?: string
+          created_at?: string
+          id?: string
+          streak_count?: number
+          user_id: string
+        }
+        Update: {
+          bonus_awarded?: boolean
+          checkin_date?: string
+          created_at?: string
+          id?: string
+          streak_count?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_checkins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friendships: {
         Row: {
           created_at: string
