@@ -1,10 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, Video, Smile, Send } from "lucide-react";
-import { useState } from "react";
+import { ImagePlus, X } from "lucide-react";
+import { useState, useEffect } from "react";
 import MediaUpload, { MediaFile } from "./MediaUpload";
 import { useToast } from "@/hooks/use-toast";
+import { useDraftPost, DraftMedia } from "@/hooks/useDraftPost";
 
 export default function CreatePost() {
   const [content, setContent] = useState("");
@@ -12,12 +13,50 @@ export default function CreatePost() {
   const [media, setMedia] = useState<MediaFile[]>([]);
   const [isPosting, setIsPosting] = useState(false);
   const { toast } = useToast();
+  const { draft, hasDraft, saveDraft, clearDraft } = useDraftPost();
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (hasDraft && draft) {
+      setContent(draft.content);
+      
+      // Convert draft media to MediaFile format
+      const restoredMedia: MediaFile[] = draft.media.map(m => ({
+        file: new File([], m.name, { type: m.type === 'image' ? 'image/*' : 'video/*' }),
+        preview: m.url,
+        type: m.type,
+        url: m.url,
+      }));
+      
+      setMedia(restoredMedia);
+      
+      if (draft.media.length > 0) {
+        setShowMediaUpload(true);
+      }
+      
+      toast({
+        title: "Đã khôi phục bản nháp",
+        description: "Bài viết chưa đăng của bạn đã được khôi phục",
+      });
+    }
+  }, [hasDraft, draft, toast]);
 
   const handleMediaChange = (newMedia: MediaFile[]) => {
     setMedia(newMedia);
     if (newMedia.length === 0) {
       setShowMediaUpload(false);
     }
+
+    // Auto-save draft when media changes
+    const draftMedia: DraftMedia[] = newMedia
+      .filter(m => m.url)
+      .map(m => ({
+        url: m.url!,
+        type: m.type,
+        name: m.file.name,
+        size: m.file.size,
+      }));
+    saveDraft(content, draftMedia);
   };
 
   const toggleMediaUpload = () => {
@@ -65,6 +104,7 @@ export default function CreatePost() {
       setContent("");
       setMedia([]);
       setShowMediaUpload(false);
+      clearDraft(); // Clear draft after successful post
       
       toast({
         title: "Thành công",
@@ -81,19 +121,62 @@ export default function CreatePost() {
     }
   };
 
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+    
+    // Auto-save draft when content changes
+    const draftMedia: DraftMedia[] = media
+      .filter(m => m.url)
+      .map(m => ({
+        url: m.url!,
+        type: m.type,
+        name: m.file.name,
+        size: m.file.size,
+      }));
+    saveDraft(newContent, draftMedia);
+  };
+
   return (
     <Card className="border-primary/20 shadow-md">
       <CardContent className="space-y-4 pt-6">
+        {/* Draft notification banner */}
+        {hasDraft && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 flex items-center justify-between">
+            <span className="text-sm text-yellow-800 dark:text-yellow-200">
+              📝 Bản nháp đã được khôi phục
+            </span>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => {
+                clearDraft();
+                setContent("");
+                setMedia([]);
+                setShowMediaUpload(false);
+              }}
+              className="h-7 gap-1"
+            >
+              <X className="h-3 w-3" />
+              Xóa
+            </Button>
+          </div>
+        )}
+
         <Textarea
           placeholder="Bạn đang nghĩ gì?"
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={handleContentChange}
           className="min-h-[100px] resize-none border-muted"
         />
 
         {/* Media Upload Section */}
         {showMediaUpload && (
-          <MediaUpload onMediaChange={handleMediaChange} maxFiles={4} />
+          <MediaUpload 
+            onMediaChange={handleMediaChange} 
+            maxFiles={4}
+            initialMedia={media}
+          />
         )}
 
         {/* Actions */}
@@ -111,31 +194,22 @@ export default function CreatePost() {
                 {showMediaUpload ? "Đang chọn media" : "Ảnh/Video"}
               </span>
             </Button>
-            <Button 
-              type="button"
-              variant="ghost" 
-              size="sm" 
-              className="gap-2 text-warning"
-            >
-              <Smile className="h-4 w-4" />
-              <span className="hidden sm:inline">Cảm xúc</span>
-            </Button>
           </div>
           
           <Button
             onClick={handlePost}
             disabled={isPosting || (!content.trim() && media.length === 0)}
-            className="gap-2 bg-primary hover:bg-primary-light"
+            className="gap-2"
           >
             {isPosting ? (
               <>
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                <span className="hidden sm:inline">Đang đăng...</span>
+                <span>Đang đăng...</span>
               </>
             ) : (
               <>
-                <Send className="h-4 w-4" />
-                <span className="hidden sm:inline">Đăng bài</span>
+                <ImagePlus className="h-4 w-4" />
+                <span>Đăng bài</span>
               </>
             )}
           </Button>
