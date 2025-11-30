@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import FriendNotificationBadge from "@/components/friends/FriendNotificationBadge";
+import FriendRequestDropdown from "@/components/friends/FriendRequestDropdown";
 import NotificationBadge from "@/components/NotificationBadge";
 import logo from "@/assets/logo.jpg";
 export default function Navbar() {
@@ -72,14 +72,14 @@ export default function Navbar() {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return <Link key={item.path} to={item.path}>
-                  <Button variant={isActive ? "default" : "ghost"} size="sm" className="gap-2 relative">
+                  <Button variant={isActive ? "default" : "ghost"} size="sm" className="gap-2">
                     <Icon className="h-4 w-4" />
                     <span className="hidden sm:inline">{item.label}</span>
-                    {item.path === "/friends" && <FriendNotificationBadge />}
                   </Button>
                 </Link>;
           })}
 
+            <FriendRequestDropdown />
             <NotificationBadge />
 
             <Button variant="ghost" size="icon" onClick={toggleTheme}>
