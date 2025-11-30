@@ -3,10 +3,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, MessageSquare, Heart, Users, Award, Settings, Loader2 } from "lucide-react";
+import { TrendingUp, MessageSquare, Heart, Users, Award, Settings, Loader2, Coins } from "lucide-react";
 import Post from "@/components/Post";
 import EditProfileModal from "@/components/EditProfileModal";
 import DailyCheckIn from "@/components/DailyCheckIn";
+import { ClaimCamlyModal } from "@/components/wallet/ClaimCamlyModal";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -33,6 +34,7 @@ interface StatsData {
   postsCount: number;
   friendsCount: number;
   likesCount: number;
+  camlyBalance: number;
 }
 
 export default function Profile() {
@@ -43,9 +45,11 @@ export default function Profile() {
     postsCount: 0,
     friendsCount: 0,
     likesCount: 0,
+    camlyBalance: 0,
   });
   const [loading, setLoading] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [claimModalOpen, setClaimModalOpen] = useState(false);
 
   const fetchUserData = async () => {
     if (!user) return;
@@ -94,10 +98,18 @@ export default function Profile() {
         likesCount = count || 0;
       }
 
+      // Fetch CAMLY balance
+      const { data: rewardsData } = await supabase
+        .from("user_rewards")
+        .select("camly_balance")
+        .eq("user_id", user.id)
+        .single();
+
       setStats({
         postsCount,
         friendsCount: friendsCount || 0,
         likesCount,
+        camlyBalance: rewardsData?.camly_balance || 0,
       });
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -126,7 +138,7 @@ export default function Profile() {
     { icon: TrendingUp, label: "Bài viết", value: stats.postsCount, color: "text-primary" },
     { icon: Users, label: "Bạn bè", value: stats.friendsCount, color: "text-info" },
     { icon: Heart, label: "Lượt thích", value: stats.likesCount, color: "text-destructive" },
-    { icon: Award, label: "Phần thưởng", value: 0, color: "text-warning" },
+    { icon: Coins, label: "CAMLY Coin", value: stats.camlyBalance.toLocaleString(), color: "text-warning" },
   ];
 
   if (loading) {
@@ -215,6 +227,35 @@ export default function Profile() {
           {/* Daily Check-In */}
           <DailyCheckIn />
 
+          {/* Claim CAMLY Card */}
+          <Card className="border-primary/20 bg-gradient-to-br from-warning/5 to-warning/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Coins className="h-5 w-5 text-warning" />
+                Claim CAMLY Token
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Số dư CAMLY</p>
+                  <p className="text-2xl font-bold">{stats.camlyBalance.toLocaleString()}</p>
+                </div>
+                <Button 
+                  onClick={() => setClaimModalOpen(true)}
+                  className="gap-2"
+                  disabled={stats.camlyBalance < 100000}
+                >
+                  <Coins className="h-4 w-4" />
+                  Claim về ví
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Đổi CAMLY coin sang token thật trên BNB Chain (100,000 CAMLY = 1 Token)
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Content Tabs */}
           <Tabs defaultValue="posts" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
@@ -297,6 +338,12 @@ export default function Profile() {
         currentBio={profile.bio || ""}
         currentAvatarUrl={profile.avatar_url || ""}
         onProfileUpdate={fetchUserData}
+      />
+      
+      <ClaimCamlyModal
+        open={claimModalOpen}
+        onOpenChange={setClaimModalOpen}
+        camlyBalance={stats.camlyBalance}
       />
     </div>
   );
