@@ -125,13 +125,13 @@ export async function getPresignedUploadUrl(
  * Validate file before upload
  */
 export function validateFile(file: File): { valid: boolean; error?: string } {
-  const MAX_SIZE = 100 * 1024 * 1024; // 100MB
+  const MAX_SIZE = 4000 * 1024 * 1024; // 4000MB
   const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
   const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
   const ALLOWED_TYPES = [...ALLOWED_IMAGE_TYPES, ...ALLOWED_VIDEO_TYPES];
 
   if (file.size > MAX_SIZE) {
-    return { valid: false, error: "File quá lớn. Kích thước tối đa là 100MB." };
+    return { valid: false, error: "File quá lớn. Kích thước tối đa là 4000MB." };
   }
 
   if (!ALLOWED_TYPES.includes(file.type)) {
