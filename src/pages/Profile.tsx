@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, MessageSquare, Heart, Users, Award, Settings, Loader2 } from "lucide-react";
 import Post from "@/components/Post";
 import EditProfileModal from "@/components/EditProfileModal";
+import DailyCheckIn from "@/components/DailyCheckIn";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -210,6 +211,9 @@ export default function Profile() {
               );
             })}
           </div>
+
+          {/* Daily Check-In */}
+          <DailyCheckIn />
 
           {/* Content Tabs */}
           <Tabs defaultValue="posts" className="w-full">
