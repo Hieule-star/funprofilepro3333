@@ -140,7 +140,7 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
         post_id: postId,
         user_id: user.id,
         content: content.trim(),
-        parent_comment_id: replyTo?.commentId || null,
+        parent_id: replyTo?.commentId || null,
       });
 
     if (error) {
