@@ -3,8 +3,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Heart, Users, Award, Loader2, UserPlus, UserCheck, MessageCircle, Clock } from "lucide-react";
+import { TrendingUp, Award, Loader2, UserPlus, UserCheck, MessageCircle, Clock } from "lucide-react";
 import Post from "@/components/Post";
+import HonorBoard from "@/components/HonorBoard";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -388,13 +389,6 @@ export default function UserProfile() {
     return "U";
   };
 
-  const statsData = [
-    { icon: TrendingUp, label: "Bài viết", value: stats.postsCount, color: "text-primary" },
-    { icon: Users, label: "Bạn bè", value: stats.friendsCount, color: "text-info" },
-    { icon: Heart, label: "Lượt thích", value: stats.likesCount, color: "text-destructive" },
-    { icon: Award, label: "Phần thưởng", value: 0, color: "text-warning" },
-  ];
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -456,21 +450,8 @@ export default function UserProfile() {
             </CardContent>
           </Card>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {statsData.map((stat, index) => {
-              const Icon = stat.icon;
-              return (
-                <Card key={index} className="border-primary/20">
-                  <CardContent className="flex flex-col items-center justify-center py-6 text-center">
-                    <Icon className={`h-8 w-8 ${stat.color}`} />
-                    <p className="mt-2 text-2xl font-bold">{stat.value}</p>
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+          {/* Stats - Honor Board */}
+          <HonorBoard userId={userId} />
 
           {/* Content Tabs */}
           <Tabs defaultValue="posts" className="w-full">
