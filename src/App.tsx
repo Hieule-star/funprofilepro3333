@@ -10,6 +10,7 @@ import { WalletProvider } from "@/contexts/WalletContext";
 import { wagmiConfig } from "@/lib/wagmi-config";
 import { privyConfig, isPrivyConfigured } from "@/lib/privy-config";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { RewardNotificationProvider } from "@/components/RewardNotificationProvider";
 import Navbar from "./components/Navbar";
 import Feed from "./pages/Feed";
 import Friends from "./pages/Friends";
@@ -39,9 +40,10 @@ const App = () => {
               <Sonner />
               <BrowserRouter>
                 <AuthProvider>
-                  <WalletProvider>
-                    <Navbar />
-                    <Routes>
+                  <RewardNotificationProvider>
+                    <WalletProvider>
+                      <Navbar />
+                      <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/"
@@ -100,11 +102,12 @@ const App = () => {
               }
             />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-                </Routes>
-              </WalletProvider>
-            </AuthProvider>
-          </BrowserRouter>
+                  <Route path="*" element={<NotFound />} />
+                      </Routes>
+                    </WalletProvider>
+                  </RewardNotificationProvider>
+                </AuthProvider>
+              </BrowserRouter>
         </TooltipProvider>
       </WagmiProvider>
       </PrivyProvider>
@@ -115,9 +118,10 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <AuthProvider>
-                <WalletProvider>
-                  <Navbar />
-                  <Routes>
+                <RewardNotificationProvider>
+                  <WalletProvider>
+                    <Navbar />
+                    <Routes>
                     <Route path="/auth" element={<Auth />} />
                     <Route
                       path="/"
@@ -176,8 +180,9 @@ const App = () => {
                        }
                      />
                      <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </WalletProvider>
+                    </Routes>
+                  </WalletProvider>
+                </RewardNotificationProvider>
               </AuthProvider>
             </BrowserRouter>
           </TooltipProvider>
