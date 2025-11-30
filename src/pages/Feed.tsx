@@ -5,6 +5,7 @@ import Post from "@/components/Post";
 import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
 
 interface MediaItem {
   type: "image" | "video";
@@ -26,6 +27,8 @@ interface PostWithProfile {
 export default function Feed() {
   const [posts, setPosts] = useState<PostWithProfile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchParams] = useSearchParams();
+  const targetPostId = searchParams.get('postId');
 
   const fetchPosts = async () => {
     try {
@@ -72,6 +75,19 @@ export default function Feed() {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Scroll to post when coming from notification
+  useEffect(() => {
+    if (!loading && targetPostId) {
+      // Small delay to ensure DOM is fully rendered
+      setTimeout(() => {
+        const postElement = document.getElementById(`post-${targetPostId}`);
+        if (postElement) {
+          postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+    }
+  }, [loading, targetPostId]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -121,6 +137,7 @@ export default function Feed() {
                       comments={0}
                       shares={0}
                       media={post.media || undefined}
+                      autoExpandComments={post.id === targetPostId}
                     />
                   );
                 })
