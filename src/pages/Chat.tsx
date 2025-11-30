@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
+import { useCallSignaling } from "@/hooks/useCallSignaling";
 
 export default function Chat() {
   const { user, profile } = useAuth();
@@ -18,14 +19,21 @@ export default function Chat() {
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [videoCallOpen, setVideoCallOpen] = useState(false);
-  const [incomingCallOpen, setIncomingCallOpen] = useState(false);
-  const [callInitiator, setCallInitiator] = useState<string>("");
   const [isCaller, setIsCaller] = useState(false);
   
   const { typingUsers, setTyping } = useTypingIndicator(
     selectedConversation?.id,
     user?.id
   );
+
+  const {
+    initiateCall,
+    acceptCall,
+    rejectCall,
+    incomingCall,
+    callAccepted,
+    callRejected
+  } = useCallSignaling(user?.id);
 
   useEffect(() => {
     if (!selectedConversation) return;
@@ -95,37 +103,66 @@ export default function Chat() {
     }
   };
 
+  // Handle call acceptance
+  useEffect(() => {
+    if (callAccepted && isCaller) {
+      setVideoCallOpen(true);
+    }
+  }, [callAccepted, isCaller]);
+
+  // Handle call rejection
+  useEffect(() => {
+    if (callRejected) {
+      setVideoCallOpen(false);
+      setIsCaller(false);
+      toast({
+        title: "Cuộc gọi bị từ chối",
+        description: "Người dùng đã từ chối cuộc gọi của bạn",
+        variant: "destructive"
+      });
+    }
+  }, [callRejected, toast]);
+
   const handleVideoCall = () => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || !profile) return;
+    
+    const targetUser = selectedConversation.participants[0];
     setIsCaller(true);
-    setVideoCallOpen(true);
+    
+    initiateCall(
+      targetUser.user_id,
+      selectedConversation.id,
+      {
+        name: profile.username,
+        avatar: profile.avatar_url || undefined
+      }
+    );
+
     toast({
       title: "Đang gọi...",
-      description: `Đang kết nối với ${selectedConversation.participants[0]?.profiles?.username}`,
+      description: `Đang chờ ${targetUser.profiles?.username} phản hồi...`,
     });
   };
 
   const handleVoiceCall = () => {
-    if (!selectedConversation) return;
-    setIsCaller(true);
-    setVideoCallOpen(true);
-    toast({
-      title: "Đang gọi...",
-      description: `Đang kết nối với ${selectedConversation.participants[0]?.profiles?.username}`,
-    });
+    handleVideoCall(); // Same logic for now
   };
 
   const handleAcceptCall = () => {
-    setIncomingCallOpen(false);
-    setIsCaller(false);
-    setVideoCallOpen(true);
+    if (incomingCall) {
+      acceptCall(incomingCall.callerId);
+      setIsCaller(false);
+      setVideoCallOpen(true);
+    }
   };
 
   const handleRejectCall = () => {
-    setIncomingCallOpen(false);
-    toast({
-      title: "Đã từ chối cuộc gọi",
-    });
+    if (incomingCall) {
+      rejectCall(incomingCall.callerId);
+      toast({
+        title: "Đã từ chối cuộc gọi",
+      });
+    }
   };
 
   const handleTyping = (isTyping: boolean) => {
@@ -177,26 +214,32 @@ export default function Chat() {
         )}
       </div>
 
-      {selectedConversation && (
-        <>
-          <VideoCallModal
-            open={videoCallOpen}
-            onOpenChange={setVideoCallOpen}
-            currentUserId={user?.id || ""}
-            targetUserId={selectedConversation.participants[0]?.user_id || ""}
-            targetUsername={selectedConversation.participants[0]?.profiles?.username || ""}
-            conversationId={selectedConversation.id}
-            isCaller={isCaller}
-          />
+      {selectedConversation && videoCallOpen && (
+        <VideoCallModal
+          open={videoCallOpen}
+          onOpenChange={(open) => {
+            setVideoCallOpen(open);
+            if (!open) {
+              setIsCaller(false);
+            }
+          }}
+          currentUserId={user?.id || ""}
+          targetUserId={selectedConversation.participants[0]?.user_id || ""}
+          targetUsername={selectedConversation.participants[0]?.profiles?.username || ""}
+          conversationId={selectedConversation.id}
+          isCaller={isCaller}
+          callAccepted={!!callAccepted}
+        />
+      )}
 
-          <IncomingCallModal
-            open={incomingCallOpen}
-            callerName={selectedConversation.participants[0]?.profiles?.username || ""}
-            callerAvatar={selectedConversation.participants[0]?.profiles?.avatar_url}
-            onAccept={handleAcceptCall}
-            onReject={handleRejectCall}
-          />
-        </>
+      {incomingCall && (
+        <IncomingCallModal
+          open={true}
+          callerName={incomingCall.callerName}
+          callerAvatar={incomingCall.callerAvatar}
+          onAccept={handleAcceptCall}
+          onReject={handleRejectCall}
+        />
       )}
     </div>
   );
