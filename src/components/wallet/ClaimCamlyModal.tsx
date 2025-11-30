@@ -3,11 +3,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { Coins, ArrowRight, Loader2, ExternalLink } from "lucide-react";
+import { Coins, ArrowRight, Loader2, ExternalLink, Gift, Sparkles } from "lucide-react";
 import { useWallets } from "@privy-io/react-auth";
+import confetti from "canvas-confetti";
 
 interface ClaimCamlyModalProps {
   open: boolean;
@@ -26,6 +28,52 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
   const [loading, setLoading] = useState(false);
 
   const tokenAmount = amountDb ? Math.floor(parseFloat(amountDb) / EXCHANGE_RATE).toLocaleString() : "0";
+
+  const fireConfetti = () => {
+    const colors = ['#ff69b4', '#ff1493', '#ffd700', '#00ff00', '#00d4ff', '#ff6b6b', '#ffffff'];
+    
+    // Initial big burst from center
+    confetti({
+      particleCount: 150,
+      spread: 100,
+      origin: { y: 0.6 },
+      colors: colors,
+    });
+    
+    // Continuous confetti from both sides for 2.5 seconds
+    const end = Date.now() + 2500;
+    const frame = () => {
+      confetti({
+        particleCount: 4,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: colors,
+      });
+      confetti({
+        particleCount: 4,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: colors,
+      });
+      
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    };
+    frame();
+    
+    // Extra burst in the middle
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        spread: 120,
+        origin: { y: 0.5 },
+        colors: colors,
+      });
+    }, 1000);
+  };
 
   const handleClaim = async () => {
     if (!user) {
@@ -76,6 +124,9 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
         toast.error(data.error);
         return;
       }
+
+      // 🎉 Fire confetti celebration!
+      fireConfetti();
 
       toast.success(
         <div className="flex flex-col gap-1">
@@ -160,15 +211,33 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
 
           {/* Conversion Display */}
           {amountDb && parseFloat(amountDb) >= MIN_CLAIM_AMOUNT && (
-            <div className="bg-primary/10 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Coins className="w-5 h-5" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Bạn sẽ nhận</p>
-                  <p className="text-xl font-bold">{tokenAmount} CAMLY</p>
+            <div className="bg-gradient-to-r from-primary/20 to-yellow-500/20 rounded-lg p-4 border border-primary/30 animate-pulse">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Gift className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-primary">Xem trước giao dịch</span>
+                </div>
+                <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-600">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Token thật
+                </Badge>
+              </div>
+              
+              <div className="flex items-center justify-center gap-3 py-2">
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{parseFloat(amountDb).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">CAMLY Coin</p>
+                </div>
+                <ArrowRight className="w-6 h-6 text-primary animate-bounce" />
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary">{tokenAmount}</p>
+                  <p className="text-xs text-muted-foreground">CAMLY Token</p>
                 </div>
               </div>
-              <ArrowRight className="w-5 h-5 text-primary" />
+              
+              <div className="mt-3 pt-3 border-t border-primary/20 text-xs text-muted-foreground">
+                <p>📍 Token sẽ được gửi đến: <span className="font-mono">{address?.slice(0,6)}...{address?.slice(-4)}</span></p>
+              </div>
             </div>
           )}
 
