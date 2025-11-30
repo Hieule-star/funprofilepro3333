@@ -36,6 +36,12 @@ export default function OnlineFriends({ onFriendClick }: OnlineFriendsProps) {
   }, [user]);
 
   const handleCreateConversation = async (friendId: string) => {
+    // Debug: Check session state
+    const { data: sessionData } = await supabase.auth.getSession();
+    console.log('Session state:', sessionData?.session ? 'Valid' : 'None');
+    console.log('User ID from context:', user?.id);
+    console.log('User ID from session:', sessionData?.session?.user?.id);
+
     if (!user) {
       toast({
         title: "Lỗi xác thực",
