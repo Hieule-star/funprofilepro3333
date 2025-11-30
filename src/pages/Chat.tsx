@@ -9,9 +9,10 @@ import IncomingCallModal from "@/components/chat/IncomingCallModal";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 
 export default function Chat() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toast } = useToast();
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -20,6 +21,11 @@ export default function Chat() {
   const [incomingCallOpen, setIncomingCallOpen] = useState(false);
   const [callInitiator, setCallInitiator] = useState<string>("");
   const [isCaller, setIsCaller] = useState(false);
+  
+  const { typingUsers, setTyping } = useTypingIndicator(
+    selectedConversation?.id,
+    user?.id
+  );
 
   useEffect(() => {
     if (!selectedConversation) return;
@@ -122,6 +128,12 @@ export default function Chat() {
     });
   };
 
+  const handleTyping = (isTyping: boolean) => {
+    if (profile) {
+      setTyping(isTyping, profile.username, profile.avatar_url || undefined);
+    }
+  };
+
   return (
     <div className="flex h-[calc(100vh-4rem)] bg-background">
       <ChatSidebar
@@ -143,10 +155,17 @@ export default function Chat() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : (
-              <MessageList messages={messages} currentUserId={user?.id} />
+              <MessageList 
+                messages={messages} 
+                currentUserId={user?.id}
+                typingUsers={typingUsers}
+              />
             )}
 
-            <ChatInput onSendMessage={handleSendMessage} />
+            <ChatInput 
+              onSendMessage={handleSendMessage}
+              onTyping={handleTyping}
+            />
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-muted-foreground">
