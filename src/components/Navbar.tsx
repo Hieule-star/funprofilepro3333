@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Users, UserCircle, Wallet, Search, Sun, Moon, LogOut, User as UserIcon, MessageCircle, Gamepad2 } from "lucide-react";
+import { Home, Users, UserCircle, Wallet, Search, Sun, Moon, LogOut, User as UserIcon, MessageCircle, Gamepad2, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -40,6 +40,10 @@ export default function Navbar() {
     icon: Gamepad2,
     label: "Game",
     path: "/game"
+  }, {
+    icon: Trophy,
+    label: "Leaderboard",
+    path: "/leaderboard"
   }, {
     icon: UserCircle,
     label: "Profile",
