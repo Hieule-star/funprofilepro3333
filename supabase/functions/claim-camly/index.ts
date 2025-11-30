@@ -10,7 +10,7 @@ const corsHeaders = {
 
 const CAMLY_CONTRACT_ADDRESS = "0x0910320181889fefde0bb1ca63962b0a8882e413";
 const BNB_RPC_URL = "https://bsc-dataseed1.binance.org";
-const EXCHANGE_RATE = 100000; // 100,000 DB CAMLY = 1 token CAMLY
+const EXCHANGE_RATE = 1; // 1 DB CAMLY = 1 token CAMLY (tỷ lệ 1:1)
 const MIN_CLAIM_AMOUNT = 100000; // Minimum 100k DB CAMLY
 
 // ERC20 ABI for transfer function
@@ -100,7 +100,7 @@ serve(async (req) => {
     }
 
     // Calculate token amount (CAMLY has 3 decimals)
-    const tokenAmount = (amountDb / EXCHANGE_RATE).toString();
+    const tokenAmount = Math.floor(amountDb / EXCHANGE_RATE).toString();
     const tokenAmountWei = ethers.parseUnits(tokenAmount, 3); // 3 decimals
 
     // Create claim request

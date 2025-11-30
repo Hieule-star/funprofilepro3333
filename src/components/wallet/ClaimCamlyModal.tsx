@@ -15,7 +15,7 @@ interface ClaimCamlyModalProps {
   camlyBalance: number;
 }
 
-const EXCHANGE_RATE = 100000; // 100,000 DB CAMLY = 1 token CAMLY
+const EXCHANGE_RATE = 1; // 1 DB CAMLY = 1 token CAMLY (tỷ lệ 1:1)
 const MIN_CLAIM_AMOUNT = 100000;
 
 export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamlyModalProps) => {
@@ -25,7 +25,7 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
   const [amountDb, setAmountDb] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const tokenAmount = amountDb ? (parseFloat(amountDb) / EXCHANGE_RATE).toFixed(3) : "0";
+  const tokenAmount = amountDb ? Math.floor(parseFloat(amountDb) / EXCHANGE_RATE).toLocaleString() : "0";
 
   const handleClaim = async () => {
     if (!user) {
@@ -128,7 +128,7 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
           <div className="bg-muted/50 rounded-lg p-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">Tỷ lệ đổi:</span>
-              <span className="font-semibold">100,000 CAMLY = 1 Token</span>
+              <span className="font-semibold">1 CAMLY = 1 Token</span>
             </div>
             <div className="flex items-center justify-between text-sm mt-2">
               <span className="text-muted-foreground">Số dư khả dụng:</span>
