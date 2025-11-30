@@ -709,10 +709,12 @@ export type Database = {
         Args: { current_user_id: string; friend_id: string }
         Returns: string
       }
+      get_user_streak: { Args: { p_user_id: string }; Returns: number }
       is_conversation_participant: {
         Args: { conv_id: string; uid: string }
         Returns: boolean
       }
+      process_daily_checkin: { Args: { p_user_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
