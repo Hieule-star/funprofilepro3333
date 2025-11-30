@@ -49,6 +49,14 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
       return;
     }
 
+    // Get session token
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.access_token) {
+      toast.error("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -56,6 +64,9 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
         body: {
           amountDb: amount,
           walletAddress: address
+        },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
         }
       });
 
