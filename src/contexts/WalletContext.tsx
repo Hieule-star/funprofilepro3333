@@ -74,13 +74,23 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Auto-save wallet when connected and load tokens
   useEffect(() => {
-    if (isConnected && address && !isSaved) {
+    console.log('[WalletContext] useEffect triggered:', {
+      isConnected,
+      hasAddress: !!address,
+      hasUser: !!user,
+      isSaved,
+      chainId,
+    });
+
+    if (isConnected && address && !isSaved && user) {
+      console.log('[WalletContext] Auto-saving wallet address');
       saveWalletAddress();
     }
-    if (isConnected && address) {
+    if (isConnected && address && user) {
+      console.log('[WalletContext] Refreshing tokens');
       refreshTokens();
     }
-  }, [isConnected, address, chainId]);
+  }, [isConnected, address, chainId, user]);
 
   const disconnect = () => {
     wagmiDisconnect();
@@ -93,9 +103,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshTokens = async () => {
-    if (!address || !chainId || !user) return;
+    console.log('[WalletContext] refreshTokens called:', {
+      address,
+      chainId,
+      userId: user?.id,
+      hasUser: !!user,
+    });
+
+    if (!address || !chainId || !user) {
+      console.log('[WalletContext] refreshTokens early return - missing data:', {
+        hasAddress: !!address,
+        hasChainId: !!chainId,
+        hasUser: !!user,
+      });
+      return;
+    }
 
     try {
+      console.log('[WalletContext] Fetching custom tokens from database');
       const { data, error } = await supabase
         .from('custom_tokens')
         .select('*')
@@ -104,10 +129,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
       if (error) throw error;
       if (data) {
+        console.log('[WalletContext] Custom tokens loaded:', data.length);
         setCustomTokens(data);
       }
     } catch (error) {
-      console.error('Error fetching custom tokens:', error);
+      console.error('[WalletContext] Error fetching custom tokens:', error);
     }
   };
 
@@ -125,7 +151,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         hasChainId: !!chainId,
         hasUser: !!user,
       });
-      return;
+      throw new Error('Please wait for wallet connection and login to complete');
     }
 
     try {
