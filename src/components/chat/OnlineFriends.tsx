@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
 
 interface OnlineFriendsProps {
   onFriendClick?: (friendId: string) => void;
@@ -11,6 +12,7 @@ interface OnlineFriendsProps {
 export default function OnlineFriends({ onFriendClick }: OnlineFriendsProps) {
   const { user } = useAuth();
   const [friends, setFriends] = useState<any[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!user) return;
@@ -34,60 +36,84 @@ export default function OnlineFriends({ onFriendClick }: OnlineFriendsProps) {
   }, [user]);
 
   const handleCreateConversation = async (friendId: string) => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Lỗi xác thực",
+        description: "Bạn cần đăng nhập để sử dụng tính năng chat.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
-      // Check if conversation already exists
-      const { data: existingParticipants } = await supabase
-        .from("conversation_participants")
-        .select("conversation_id")
-        .eq("user_id", user.id);
+      // Check if conversation already exists between these users
+      const { data: existingConversations, error: fetchError } = await supabase
+        .from("conversations")
+        .select(`
+          id,
+          conversation_participants!inner(user_id)
+        `)
+        .or(`user_id.eq.${user.id},user_id.eq.${friendId}`, {
+          referencedTable: "conversation_participants",
+        });
 
-      if (existingParticipants) {
-        for (const participant of existingParticipants) {
-          const { data: otherParticipants, count } = await supabase
-            .from("conversation_participants")
-            .select("user_id", { count: "exact" })
-            .eq("conversation_id", participant.conversation_id);
+      if (fetchError) throw fetchError;
 
-          if (count === 2 && otherParticipants?.some(p => p.user_id === friendId)) {
-            // Conversation exists
-            if (onFriendClick) {
-              onFriendClick(participant.conversation_id);
-            }
-            return;
-          }
-        }
+      // Find a conversation where both users are participants
+      const existingConversation = existingConversations?.find((conv: any) => {
+        const participants = conv.conversation_participants.map(
+          (p: any) => p.user_id
+        );
+        return participants.includes(user.id) && participants.includes(friendId);
+      });
+
+      if (existingConversation) {
+        onFriendClick?.(existingConversation.id);
+        return;
       }
 
       // Create new conversation
-      const { data: newConversation, error: convError } = await supabase
+      const { data: newConversation, error: conversationError } = await supabase
         .from("conversations")
         .insert({})
         .select()
         .single();
 
-      if (convError) throw convError;
+      if (conversationError) throw conversationError;
 
-      // Add current user first (required for RLS policy)
-      const { error: userParticipantError } = await supabase
+      // Add current user as participant first
+      const { error: participant1Error } = await supabase
         .from("conversation_participants")
-        .insert({ conversation_id: newConversation.id, user_id: user.id });
+        .insert({
+          conversation_id: newConversation.id,
+          user_id: user.id,
+        });
 
-      if (userParticipantError) throw userParticipantError;
+      if (participant1Error) throw participant1Error;
 
-      // Then add friend (now current user is a participant, has permission)
-      const { error: friendParticipantError } = await supabase
+      // Add friend as participant
+      const { error: participant2Error } = await supabase
         .from("conversation_participants")
-        .insert({ conversation_id: newConversation.id, user_id: friendId });
+        .insert({
+          conversation_id: newConversation.id,
+          user_id: friendId,
+        });
 
-      if (friendParticipantError) throw friendParticipantError;
+      if (participant2Error) throw participant2Error;
 
-      if (onFriendClick) {
-        onFriendClick(newConversation.id);
-      }
-    } catch (error) {
+      onFriendClick?.(newConversation.id);
+      
+      toast({
+        title: "Đã tạo cuộc trò chuyện",
+        description: "Bắt đầu chat ngay!",
+      });
+    } catch (error: any) {
       console.error("Error creating conversation:", error);
+      toast({
+        title: "Lỗi tạo cuộc trò chuyện",
+        description: error?.message || "Không thể tạo cuộc trò chuyện. Vui lòng thử lại.",
+        variant: "destructive",
+      });
     }
   };
 
