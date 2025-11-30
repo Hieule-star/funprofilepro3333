@@ -134,14 +134,17 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
       return;
     }
 
-    const { error } = await supabase
+    // Insert comment and get the inserted comment ID
+    const { data: insertedComment, error } = await supabase
       .from('comments')
       .insert({
         post_id: postId,
         user_id: user.id,
         content: content.trim(),
         parent_id: replyTo?.commentId || null,
-      });
+      })
+      .select('id')
+      .single();
 
     if (error) {
       toast({
@@ -181,7 +184,7 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
             title: 'Bạn được nhắc đến',
             message: `${currentProfile?.username || 'Ai đó'} đã nhắc đến bạn trong một bình luận`,
             read: false,
-            link: `/?postId=${postId}`
+            link: `/?postId=${postId}&commentId=${insertedComment?.id || ''}`
           }));
         
         if (notifications.length > 0) {
@@ -210,7 +213,7 @@ export default function CommentInput({ postId, replyTo, onCancelReply }: Comment
         title: 'Có bình luận mới',
         message: `${currentProfile?.username || 'Ai đó'} đã bình luận vào bài viết của bạn`,
         read: false,
-        link: `/?postId=${postId}`
+        link: `/?postId=${postId}&commentId=${insertedComment?.id || ''}`
       });
     }
 

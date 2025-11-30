@@ -18,9 +18,10 @@ interface Comment {
 interface CommentListProps {
   postId: string;
   onReply: (commentId: string, username: string) => void;
+  targetCommentId?: string | null;
 }
 
-export default function CommentList({ postId, onReply }: CommentListProps) {
+export default function CommentList({ postId, onReply, targetCommentId }: CommentListProps) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -79,6 +80,18 @@ export default function CommentList({ postId, onReply }: CommentListProps) {
     };
   }, [postId]);
 
+  // Scroll to target comment when specified
+  useEffect(() => {
+    if (targetCommentId && comments.length > 0) {
+      setTimeout(() => {
+        const commentElement = document.getElementById(`comment-${targetCommentId}`);
+        if (commentElement) {
+          commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 500);
+    }
+  }, [targetCommentId, comments.length]);
+
   const handleDelete = async (commentId: string) => {
     const { error } = await supabase
       .from('comments')
@@ -125,6 +138,7 @@ export default function CommentList({ postId, onReply }: CommentListProps) {
             currentUserId={currentUserId}
             onDelete={handleDelete}
             onReply={onReply}
+            isHighlighted={comment.id === targetCommentId}
           />
           {repliesMap[comment.id] && (
             <div className="space-y-2">
@@ -136,6 +150,7 @@ export default function CommentList({ postId, onReply }: CommentListProps) {
                   onDelete={handleDelete}
                   onReply={onReply}
                   isNested
+                  isHighlighted={reply.id === targetCommentId}
                 />
               ))}
             </div>

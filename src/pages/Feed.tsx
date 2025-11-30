@@ -29,6 +29,7 @@ export default function Feed() {
   const [loading, setLoading] = useState(true);
   const [searchParams] = useSearchParams();
   const targetPostId = searchParams.get('postId');
+  const targetCommentId = searchParams.get('commentId');
 
   const fetchPosts = async () => {
     try {
@@ -138,6 +139,7 @@ export default function Feed() {
                       shares={0}
                       media={post.media || undefined}
                       autoExpandComments={post.id === targetPostId}
+                      targetCommentId={post.id === targetPostId ? targetCommentId : null}
                     />
                   );
                 })

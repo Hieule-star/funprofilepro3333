@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Trash2, Reply, Heart, Edit2, Save, X } from "lucide-react";
@@ -24,6 +25,7 @@ interface CommentItemProps {
   onDelete: (commentId: string) => void;
   onReply: (commentId: string, username: string) => void;
   isNested?: boolean;
+  isHighlighted?: boolean;
 }
 
 export default function CommentItem({ 
@@ -31,7 +33,8 @@ export default function CommentItem({
   currentUserId, 
   onDelete, 
   onReply,
-  isNested = false 
+  isNested = false,
+  isHighlighted = false
 }: CommentItemProps) {
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
@@ -187,16 +190,30 @@ export default function CommentItem({
   };
 
   return (
-    <div className={`flex gap-2 ${isNested ? 'ml-10' : ''}`}>
+    <div 
+      id={`comment-${comment.id}`}
+      className={`flex gap-2 ${isNested ? 'ml-10' : ''} ${
+        isHighlighted ? 'animate-pulse' : ''
+      }`}
+    >
       <Avatar className="h-8 w-8 shrink-0">
         <AvatarFallback className="bg-primary/10 text-xs">
           {avatarInitials}
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
-        <div className="bg-muted rounded-lg px-3 py-2">
+        <div className={`bg-muted rounded-lg px-3 py-2 ${
+          isHighlighted ? 'ring-2 ring-primary' : ''
+        }`}>
           <div className="flex items-center justify-between gap-2">
-            <p className="font-semibold text-sm">{username}</p>
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-sm">{username}</p>
+              {isHighlighted && (
+                <Badge variant="default" className="h-5 text-xs animate-pulse">
+                  Mới
+                </Badge>
+              )}
+            </div>
             {isOwner && !isEditing && (
               <div className="flex gap-1">
                 <Button
