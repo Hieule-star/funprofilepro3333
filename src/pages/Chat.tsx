@@ -68,6 +68,11 @@ export default function Chat() {
           filter: `conversation_id=eq.${selectedConversation.id}`,
         },
         async (payload) => {
+          console.log("Realtime payload:", payload.new);
+          
+          // Add small delay to ensure database commit is complete
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
           const { data: newMessage } = await supabase
             .from("messages")
             .select(`
@@ -76,6 +81,8 @@ export default function Chat() {
             `)
             .eq("id", payload.new.id)
             .single();
+
+          console.log("Fetched message:", newMessage);
 
           if (newMessage) {
             setMessages((prev) => [...prev, newMessage]);
