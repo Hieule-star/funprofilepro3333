@@ -1,6 +1,16 @@
+interface SignalingCallbacks {
+  onOffer: (offer: RTCSessionDescriptionInit) => Promise<void>;
+  onAnswer: (answer: RTCSessionDescriptionInit) => Promise<void>;
+  onIceCandidate: (candidate: RTCIceCandidateInit) => Promise<void>;
+  onReady: () => Promise<void>;
+  sendOffer: (offer: RTCSessionDescriptionInit) => void;
+  sendAnswer: (answer: RTCSessionDescriptionInit) => void;
+  sendIceCandidate: (candidate: RTCIceCandidateInit) => void;
+  sendReady: () => void;
+}
+
 export class WebRTCManager {
   private pc: RTCPeerConnection | null = null;
-  private ws: WebSocket | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private userId: string;
@@ -9,7 +19,7 @@ export class WebRTCManager {
   private onRemoteStream?: (stream: MediaStream) => void;
   private onCallEnded?: () => void;
   private isCallerRole: boolean = true;
-  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private signalingCallbacks?: SignalingCallbacks;
 
   constructor(
     userId: string,
@@ -25,92 +35,39 @@ export class WebRTCManager {
     this.onCallEnded = onCallEnded;
   }
 
+  setSignalingCallbacks(callbacks: SignalingCallbacks) {
+    this.signalingCallbacks = callbacks;
+    
+    // Set up incoming signal handlers
+    callbacks.onOffer = async (offer: RTCSessionDescriptionInit) => {
+      await this.handleOffer(offer);
+    };
+    
+    callbacks.onAnswer = async (answer: RTCSessionDescriptionInit) => {
+      await this.handleAnswer(answer);
+    };
+    
+    callbacks.onIceCandidate = async (candidate: RTCIceCandidateInit) => {
+      await this.handleIceCandidate(candidate);
+    };
+    
+    callbacks.onReady = async () => {
+      // Caller receives this - callee is ready, now send offer
+      if (this.isCallerRole && this.pc) {
+        console.log('=== Peer is ready, creating and sending offer ===');
+        const offer = await this.pc.createOffer();
+        await this.pc.setLocalDescription(offer);
+        this.signalingCallbacks?.sendOffer(offer);
+      }
+    };
+  }
+
   async initialize(isCaller: boolean = true) {
     this.isCallerRole = isCaller;
-    return new Promise<void>((resolve, reject) => {
-      const projectRef = "krajdsugcvwytpsqnbzs";
-      this.ws = new WebSocket(`wss://${projectRef}.supabase.co/functions/v1/realtime-video`);
-
-      const timeout = setTimeout(() => {
-        reject(new Error('WebSocket connection timeout'));
-        this.cleanup();
-      }, 10000);
-
-      this.ws.onopen = () => {
-        console.log("WebSocket connected");
-        clearTimeout(timeout);
-        this.ws?.send(JSON.stringify({
-          type: 'join',
-          senderId: this.userId,
-          conversationId: this.conversationId
-        }));
-        
-        // Start heartbeat to keep connection alive
-        this.heartbeatInterval = setInterval(() => {
-          if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(JSON.stringify({ type: 'ping' }));
-            console.log('Heartbeat ping sent');
-          }
-        }, 15000); // Ping every 15 seconds
-        
-        // If callee, send ready signal after joining
-        if (!this.isCallerRole) {
-          setTimeout(() => {
-            console.log("Callee sending ready signal to caller");
-            this.sendSignalingMessage({
-              type: 'ready',
-              senderId: this.userId,
-              targetId: this.targetUserId
-            });
-          }, 500);
-        }
-        
-        resolve();
-      };
-
-      this.ws.onmessage = async (event) => {
-        const message = JSON.parse(event.data);
-        console.log("Received signaling message:", message.type);
-
-        switch (message.type) {
-          case 'peer-ready':
-            // Caller receives this - callee is ready, now send offer
-            if (this.isCallerRole && this.pc) {
-              console.log('Peer is ready, creating and sending offer...');
-              const offer = await this.pc.createOffer();
-              await this.pc.setLocalDescription(offer);
-              this.sendSignalingMessage({
-                type: 'offer',
-                targetId: this.targetUserId,
-                senderId: this.userId,
-                data: offer
-              });
-            }
-            break;
-          case 'offer':
-            await this.handleOffer(message.data);
-            break;
-          case 'answer':
-            await this.handleAnswer(message.data);
-            break;
-          case 'ice-candidate':
-            await this.handleIceCandidate(message.data);
-            break;
-        }
-      };
-
-      this.ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        clearTimeout(timeout);
-        reject(error);
-      };
-
-      this.ws.onclose = () => {
-        console.log("WebSocket closed");
-        clearTimeout(timeout);
-        this.cleanup();
-      };
-    });
+    console.log(`=== WebRTCManager initialized as ${isCaller ? 'caller' : 'callee'} ===`);
+    
+    // Setup peer connection immediately
+    this.setupPeerConnection();
   }
 
   async startCall(
@@ -128,21 +85,18 @@ export class WebRTCManager {
           : true
       };
 
-      console.log('Getting user media with constraints:', constraints);
+      console.log('=== Getting user media with constraints ===', constraints);
       this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
-      this.setupPeerConnection();
-      
       this.localStream.getTracks().forEach(track => {
         this.pc?.addTrack(track, this.localStream!);
       });
 
-      // Don't send offer immediately - wait for peer-ready signal
-      console.log("Caller setup complete, waiting for peer-ready signal...");
+      console.log("=== Caller setup complete, waiting for peer-ready signal ===");
 
       return this.localStream;
     } catch (error) {
-      console.error("Error starting call:", error);
+      console.error("=== Error starting call ===", error);
       throw error;
     }
   }
@@ -154,18 +108,18 @@ export class WebRTCManager {
         audio: true
       });
 
-      // Setup peer connection for callee
-      this.setupPeerConnection();
-      
       this.localStream.getTracks().forEach(track => {
         this.pc?.addTrack(track, this.localStream!);
       });
 
-      console.log("Callee setup complete, ready signal already sent");
+      console.log("=== Callee setup complete, sending ready signal ===");
+      
+      // Callee sends ready signal to caller
+      this.signalingCallbacks?.sendReady();
 
       return this.localStream;
     } catch (error) {
-      console.error("Error answering call:", error);
+      console.error("=== Error answering call ===", error);
       throw error;
     }
   }
@@ -180,17 +134,13 @@ export class WebRTCManager {
 
     this.pc.onicecandidate = (event) => {
       if (event.candidate) {
-        this.sendSignalingMessage({
-          type: 'ice-candidate',
-          targetId: this.targetUserId,
-          senderId: this.userId,
-          data: event.candidate
-        });
+        console.log('=== Sending ICE candidate ===');
+        this.signalingCallbacks?.sendIceCandidate(event.candidate.toJSON());
       }
     };
 
     this.pc.ontrack = (event) => {
-      console.log("Received remote track");
+      console.log("=== Received remote track ===");
       if (!this.remoteStream) {
         this.remoteStream = new MediaStream();
         if (this.onRemoteStream) {
@@ -201,16 +151,20 @@ export class WebRTCManager {
     };
 
     this.pc.onconnectionstatechange = () => {
-      console.log("Connection state:", this.pc?.connectionState);
+      console.log("=== Connection state: ===", this.pc?.connectionState);
       if (this.pc?.connectionState === 'disconnected' || 
           this.pc?.connectionState === 'failed' ||
           this.pc?.connectionState === 'closed') {
         this.onCallEnded?.();
       }
     };
+    
+    console.log('=== Peer connection setup complete ===');
   }
 
   private async handleOffer(offer: RTCSessionDescriptionInit) {
+    console.log('=== Handling offer ===');
+    
     if (!this.pc) {
       this.setupPeerConnection();
     }
@@ -225,29 +179,21 @@ export class WebRTCManager {
     const answer = await this.pc!.createAnswer();
     await this.pc!.setLocalDescription(answer);
 
-    this.sendSignalingMessage({
-      type: 'answer',
-      targetId: this.targetUserId,
-      senderId: this.userId,
-      data: answer
-    });
+    console.log('=== Sending answer ===');
+    this.signalingCallbacks?.sendAnswer(answer);
   }
 
   private async handleAnswer(answer: RTCSessionDescriptionInit) {
+    console.log('=== Handling answer ===');
     await this.pc?.setRemoteDescription(new RTCSessionDescription(answer));
   }
 
   private async handleIceCandidate(candidate: RTCIceCandidateInit) {
     try {
+      console.log('=== Adding ICE candidate ===');
       await this.pc?.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
-      console.error("Error adding ICE candidate:", error);
-    }
-  }
-
-  private sendSignalingMessage(message: any) {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
+      console.error("=== Error adding ICE candidate ===", error);
     }
   }
 
@@ -268,21 +214,14 @@ export class WebRTCManager {
   }
 
   private cleanup() {
-    // Clear heartbeat
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-      console.log('Heartbeat stopped');
-    }
+    console.log('=== Cleaning up WebRTC resources ===');
     
     this.localStream?.getTracks().forEach(track => track.stop());
     this.pc?.close();
-    this.ws?.close();
     
     this.localStream = null;
     this.remoteStream = null;
     this.pc = null;
-    this.ws = null;
     
     this.onCallEnded?.();
   }
