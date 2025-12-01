@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.claim-camly]
 verify_jwt = true
+
+[functions.treasury-monitor]
+verify_jwt = false

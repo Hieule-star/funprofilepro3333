@@ -21,6 +21,7 @@ import UserProfile from "./pages/UserProfile";
 import Wallet from "./pages/Wallet";
 import Leaderboard from "./pages/Leaderboard";
 import ClaimHistory from "./pages/ClaimHistory";
+import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -119,6 +120,14 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                       </Routes>
@@ -210,6 +219,14 @@ const App = () => {
                        element={
                          <ProtectedRoute>
                            <ClaimHistory />
+                         </ProtectedRoute>
+                       }
+                     />
+                     <Route
+                       path="/admin"
+                       element={
+                         <ProtectedRoute>
+                           <Admin />
                          </ProtectedRoute>
                        }
                      />

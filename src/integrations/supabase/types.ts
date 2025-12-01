@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       claim_requests: {
         Row: {
           amount_db: number
@@ -670,6 +688,57 @@ export type Database = {
           },
         ]
       }
+      treasury_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          resolved: boolean | null
+          severity: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          severity: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          resolved?: boolean | null
+          severity?: string
+        }
+        Relationships: []
+      }
+      treasury_snapshots: {
+        Row: {
+          balance_bnb: number
+          balance_camly: number
+          id: string
+          recorded_at: string | null
+        }
+        Insert: {
+          balance_bnb: number
+          balance_camly: number
+          id?: string
+          recorded_at?: string | null
+        }
+        Update: {
+          balance_bnb?: number
+          balance_camly?: number
+          id?: string
+          recorded_at?: string | null
+        }
+        Relationships: []
+      }
       user_achievements: {
         Row: {
           achieved_at: string
@@ -734,6 +803,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       wallets: {
         Row: {
           address: string
@@ -789,6 +879,13 @@ export type Database = {
         Returns: string
       }
       get_user_streak: { Args: { p_user_id: string }; Returns: number }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_conversation_participant: {
         Args: { conv_id: string; uid: string }
         Returns: boolean
@@ -796,7 +893,7 @@ export type Database = {
       process_daily_checkin: { Args: { p_user_id: string }; Returns: Json }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -923,6 +1020,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
