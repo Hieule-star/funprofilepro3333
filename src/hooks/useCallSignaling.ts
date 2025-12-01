@@ -87,8 +87,25 @@ export const useCallSignaling = (userId: string | undefined): CallSignalingHook 
   const sendToUser = useCallback(async (targetUserId: string, event: string, payload: any) => {
     const targetChannel = supabase.channel(`call-signaling-${targetUserId}`);
     
-    await targetChannel.subscribe();
+    // Wait for subscription to complete before sending
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Subscription timeout'));
+      }, 5000);
+
+      targetChannel.subscribe((status) => {
+        console.log(`[sendToUser] Channel status for ${targetUserId}:`, status);
+        if (status === 'SUBSCRIBED') {
+          clearTimeout(timeout);
+          resolve();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          clearTimeout(timeout);
+          reject(new Error(`Subscribe failed: ${status}`));
+        }
+      });
+    });
     
+    console.log(`[sendToUser] Sending ${event} to ${targetUserId}`);
     await targetChannel.send({
       type: 'broadcast',
       event,

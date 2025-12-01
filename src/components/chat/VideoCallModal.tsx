@@ -13,6 +13,10 @@ interface VideoCallModalProps {
   conversationId: string;
   isCaller: boolean;
   callAccepted: boolean;
+  selectedDevices?: {
+    videoDeviceId: string;
+    audioDeviceId: string;
+  } | null;
 }
 
 export default function VideoCallModal({
@@ -23,7 +27,8 @@ export default function VideoCallModal({
   targetUsername,
   conversationId,
   isCaller,
-  callAccepted
+  callAccepted,
+  selectedDevices
 }: VideoCallModalProps) {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
@@ -72,7 +77,11 @@ export default function VideoCallModal({
 
           let localStream: MediaStream;
           if (isCaller) {
-            localStream = await manager.startCall(videoEnabled);
+            localStream = await manager.startCall(
+              videoEnabled,
+              selectedDevices?.videoDeviceId,
+              selectedDevices?.audioDeviceId
+            );
           } else {
             localStream = await manager.answerCall(videoEnabled);
           }

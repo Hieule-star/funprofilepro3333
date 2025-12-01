@@ -6,6 +6,7 @@ import MessageList from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
 import VideoCallModal from "@/components/chat/VideoCallModal";
 import IncomingCallModal from "@/components/chat/IncomingCallModal";
+import DeviceSelectionModal from "@/components/chat/DeviceSelectionModal";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -19,7 +20,17 @@ export default function Chat() {
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [videoCallOpen, setVideoCallOpen] = useState(false);
+  const [deviceSelectionOpen, setDeviceSelectionOpen] = useState(false);
+  const [selectedDevices, setSelectedDevices] = useState<{
+    videoDeviceId: string;
+    audioDeviceId: string;
+  } | null>(null);
   const [isCaller, setIsCaller] = useState(false);
+  const [pendingCallTarget, setPendingCallTarget] = useState<{
+    userId: string;
+    conversationId: string;
+    username: string;
+  } | null>(null);
   
   const { typingUsers, setTyping } = useTypingIndicator(
     selectedConversation?.id,
@@ -164,11 +175,30 @@ export default function Chat() {
     if (!selectedConversation || !profile) return;
     
     const targetUser = selectedConversation.participants[0];
+    
+    // Store call target info
+    setPendingCallTarget({
+      userId: targetUser.user_id,
+      conversationId: selectedConversation.id,
+      username: targetUser.profiles?.username || "người dùng"
+    });
+    
+    // Open device selection modal
+    setDeviceSelectionOpen(true);
+  };
+
+  const handleDeviceConfirm = (devices: { videoDeviceId: string; audioDeviceId: string }) => {
+    if (!pendingCallTarget || !profile) return;
+
+    setSelectedDevices(devices);
+    setDeviceSelectionOpen(false);
     setIsCaller(true);
     
+    console.log('Starting call with devices:', devices);
+    
     initiateCall(
-      targetUser.user_id,
-      selectedConversation.id,
+      pendingCallTarget.userId,
+      pendingCallTarget.conversationId,
       {
         name: profile.username,
         avatar: profile.avatar_url || undefined
@@ -177,7 +207,7 @@ export default function Chat() {
 
     toast({
       title: "Đang gọi...",
-      description: `Đang chờ ${targetUser.profiles?.username} phản hồi...`,
+      description: `Đang chờ ${pendingCallTarget.username} phản hồi...`,
     });
   };
 
@@ -251,6 +281,15 @@ export default function Chat() {
         )}
       </div>
 
+      {deviceSelectionOpen && pendingCallTarget && (
+        <DeviceSelectionModal
+          open={deviceSelectionOpen}
+          onOpenChange={setDeviceSelectionOpen}
+          onConfirm={handleDeviceConfirm}
+          targetUsername={pendingCallTarget.username}
+        />
+      )}
+
       {selectedConversation && videoCallOpen && (
         <VideoCallModal
           open={videoCallOpen}
@@ -258,6 +297,7 @@ export default function Chat() {
             setVideoCallOpen(open);
             if (!open) {
               setIsCaller(false);
+              setSelectedDevices(null);
             }
           }}
           currentUserId={user?.id || ""}
@@ -266,6 +306,7 @@ export default function Chat() {
           conversationId={selectedConversation.id}
           isCaller={isCaller}
           callAccepted={!!callAccepted}
+          selectedDevices={selectedDevices}
         />
       )}
 
