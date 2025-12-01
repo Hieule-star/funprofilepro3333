@@ -11,7 +11,7 @@ interface CallInvitation {
 }
 
 interface CallSignalingHook {
-  initiateCall: (targetUserId: string, conversationId: string, callerInfo: { name: string; avatar?: string }) => void;
+  initiateCall: (targetUserId: string, conversationId: string, callerInfo: { name: string; avatar?: string }) => Promise<boolean>;
   acceptCall: (callerId: string) => void;
   rejectCall: (callerId: string) => void;
   incomingCall: CallInvitation | null;
@@ -20,11 +20,11 @@ interface CallSignalingHook {
 }
 
 export const useCallSignaling = (userId: string | undefined): CallSignalingHook => {
-  const [myChannel, setMyChannel] = useState<RealtimeChannel | null>(null);
   const [incomingCall, setIncomingCall] = useState<CallInvitation | null>(null);
   const [callAccepted, setCallAccepted] = useState<{ callerId: string; conversationId: string } | null>(null);
   const [callRejected, setCallRejected] = useState(false);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+  const outgoingChannelsRef = useRef<Map<string, RealtimeChannel>>(new Map());
 
   // Play ringtone when incoming call
   useEffect(() => {
@@ -47,9 +47,9 @@ export const useCallSignaling = (userId: string | undefined): CallSignalingHook 
     if (!userId) return;
 
     // Subscribe to MY OWN channel to RECEIVE messages
-    const channel = supabase.channel(`call-signaling-${userId}`);
+    const myChannel = supabase.channel(`call-signaling-${userId}`);
 
-    channel.on('broadcast', { event: 'call-invitation' }, ({ payload }) => {
+    myChannel.on('broadcast', { event: 'call-invitation' }, ({ payload }) => {
       console.log('Received call invitation:', payload);
       setIncomingCall({
         callerId: payload.callerId,
@@ -60,7 +60,7 @@ export const useCallSignaling = (userId: string | undefined): CallSignalingHook 
       });
     });
 
-    channel.on('broadcast', { event: 'call-accepted' }, ({ payload }) => {
+    myChannel.on('broadcast', { event: 'call-accepted' }, ({ payload }) => {
       console.log('Call accepted:', payload);
       setCallAccepted({
         callerId: payload.accepterId,
@@ -69,70 +69,114 @@ export const useCallSignaling = (userId: string | undefined): CallSignalingHook 
       setCallRejected(false);
     });
 
-    channel.on('broadcast', { event: 'call-rejected' }, ({ payload }) => {
+    myChannel.on('broadcast', { event: 'call-rejected' }, ({ payload }) => {
       console.log('Call rejected:', payload);
       setCallRejected(true);
       setCallAccepted(null);
     });
 
-    channel.subscribe();
-    setMyChannel(channel);
+    myChannel.subscribe((status) => {
+      console.log(`[MyChannel ${userId}] Status:`, status);
+    });
 
     return () => {
-      channel.unsubscribe();
+      myChannel.unsubscribe();
     };
   }, [userId]);
 
-  // Helper: Send to TARGET user's channel
-  const sendToUser = useCallback(async (targetUserId: string, event: string, payload: any) => {
-    const targetChannel = supabase.channel(`call-signaling-${targetUserId}`);
+  // Helper: Send to TARGET user's channel with retry mechanism
+  const sendToUser = useCallback(async (targetUserId: string, event: string, payload: any): Promise<boolean> => {
+    // Check if we already have a channel to this user
+    let targetChannel = outgoingChannelsRef.current.get(targetUserId);
     
-    // Wait for subscription to complete before sending
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Subscription timeout'));
-      }, 5000);
-
-      targetChannel.subscribe((status) => {
-        console.log(`[sendToUser] Channel status for ${targetUserId}:`, status);
-        if (status === 'SUBSCRIBED') {
-          clearTimeout(timeout);
-          resolve();
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          clearTimeout(timeout);
-          reject(new Error(`Subscribe failed: ${status}`));
+    if (!targetChannel) {
+      targetChannel = supabase.channel(`call-signaling-${targetUserId}`);
+      outgoingChannelsRef.current.set(targetUserId, targetChannel);
+    }
+    
+    // Wait for subscription with retry
+    const subscribeWithRetry = async (retries = 3): Promise<boolean> => {
+      for (let i = 0; i < retries; i++) {
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('Timeout')), 5000);
+            
+            const currentStatus = targetChannel!.state;
+            if (currentStatus === 'joined') {
+              clearTimeout(timeout);
+              resolve();
+              return;
+            }
+            
+            targetChannel!.subscribe((status) => {
+              console.log(`[sendToUser] Attempt ${i+1} - Channel status for ${targetUserId}:`, status);
+              if (status === 'SUBSCRIBED') {
+                clearTimeout(timeout);
+                resolve();
+              } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+                clearTimeout(timeout);
+                reject(new Error(status));
+              }
+            });
+          });
+          
+          // Wait extra time for connection to stabilize
+          await new Promise(resolve => setTimeout(resolve, 500));
+          return true;
+        } catch (error) {
+          console.log(`[sendToUser] Retry ${i+1} failed:`, error);
+          if (i === retries - 1) return false;
         }
-      });
-    });
+      }
+      return false;
+    };
     
+    const success = await subscribeWithRetry();
+    if (!success) {
+      console.error('[sendToUser] Failed to subscribe after retries');
+      return false;
+    }
+    
+    // Send message
     console.log(`[sendToUser] Sending ${event} to ${targetUserId}`);
-    await targetChannel.send({
+    const result = await targetChannel.send({
       type: 'broadcast',
       event,
       payload
     });
-
-    // Cleanup after sending
+    
+    console.log(`[sendToUser] Send result:`, result);
+    
+    // Keep channel alive for response (30 seconds)
     setTimeout(() => {
-      targetChannel.unsubscribe();
-    }, 1000);
+      const channel = outgoingChannelsRef.current.get(targetUserId);
+      if (channel) {
+        console.log(`[sendToUser] Cleaning up channel for ${targetUserId}`);
+        channel.unsubscribe();
+        outgoingChannelsRef.current.delete(targetUserId);
+      }
+    }, 30000);
+    
+    return true;
   }, []);
 
-  const initiateCall = useCallback((targetUserId: string, conversationId: string, callerInfo: { name: string; avatar?: string }) => {
-    if (!userId) return;
+  const initiateCall = useCallback(async (targetUserId: string, conversationId: string, callerInfo: { name: string; avatar?: string }): Promise<boolean> => {
+    if (!userId) return false;
 
     console.log('Initiating call to:', targetUserId);
     setCallRejected(false);
     setCallAccepted(null);
 
     // Send to TARGET user's channel
-    sendToUser(targetUserId, 'call-invitation', {
+    const success = await sendToUser(targetUserId, 'call-invitation', {
       callerId: userId,
       callerName: callerInfo.name,
       callerAvatar: callerInfo.avatar,
       conversationId,
       timestamp: Date.now()
     });
+    
+    return success;
   }, [userId, sendToUser]);
 
   const acceptCall = useCallback((callerId: string) => {

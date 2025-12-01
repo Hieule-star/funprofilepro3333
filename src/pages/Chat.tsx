@@ -163,6 +163,7 @@ export default function Chat() {
     if (callRejected) {
       setVideoCallOpen(false);
       setIsCaller(false);
+      setPendingCallTarget(null);
       toast({
         title: "Cuộc gọi bị từ chối",
         description: "Người dùng đã từ chối cuộc gọi của bạn",
@@ -170,6 +171,23 @@ export default function Chat() {
       });
     }
   }, [callRejected, toast]);
+
+  // Auto timeout for call (30 seconds)
+  useEffect(() => {
+    if (isCaller && !callAccepted && !callRejected && pendingCallTarget) {
+      const timeout = setTimeout(() => {
+        toast({
+          title: "Không có phản hồi",
+          description: `${pendingCallTarget.username} không phản hồi cuộc gọi`,
+          variant: "destructive"
+        });
+        setIsCaller(false);
+        setPendingCallTarget(null);
+      }, 30000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [isCaller, callAccepted, callRejected, pendingCallTarget, toast]);
 
   const handleVideoCall = () => {
     if (!selectedConversation || !profile) return;
@@ -187,7 +205,7 @@ export default function Chat() {
     setDeviceSelectionOpen(true);
   };
 
-  const handleDeviceConfirm = (devices: { videoDeviceId: string; audioDeviceId: string }) => {
+  const handleDeviceConfirm = async (devices: { videoDeviceId: string; audioDeviceId: string }) => {
     if (!pendingCallTarget || !profile) return;
 
     setSelectedDevices(devices);
@@ -196,7 +214,7 @@ export default function Chat() {
     
     console.log('Starting call with devices:', devices);
     
-    initiateCall(
+    const success = await initiateCall(
       pendingCallTarget.userId,
       pendingCallTarget.conversationId,
       {
@@ -204,6 +222,17 @@ export default function Chat() {
         avatar: profile.avatar_url || undefined
       }
     );
+
+    if (!success) {
+      toast({
+        title: "Không thể kết nối",
+        description: "Không thể gửi lời mời cuộc gọi. Vui lòng thử lại sau.",
+        variant: "destructive"
+      });
+      setIsCaller(false);
+      setPendingCallTarget(null);
+      return;
+    }
 
     toast({
       title: "Đang gọi...",
