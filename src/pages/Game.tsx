@@ -29,6 +29,41 @@ const games = [
     difficulty: 1,
     description: "Cờ ca-rô cổ điển cho 2 người chơi",
   },
+  {
+    id: "color-match",
+    name: "Color Match",
+    icon: "🎨",
+    difficulty: 1,
+    description: "Ghép các ô màu giống nhau",
+  },
+  {
+    id: "math-kids",
+    name: "Math Kids",
+    icon: "🔢",
+    difficulty: 2,
+    description: "Giải toán cộng trừ vui nhộn",
+  },
+  {
+    id: "word-scramble",
+    name: "Word Scramble",
+    icon: "📝",
+    difficulty: 2,
+    description: "Xếp chữ cái thành từ có nghĩa",
+  },
+  {
+    id: "catch-stars",
+    name: "Catch Stars",
+    icon: "⭐",
+    difficulty: 1,
+    description: "Bắt sao rơi để ghi điểm cao",
+  },
+  {
+    id: "animal-quiz",
+    name: "Animal Quiz",
+    icon: "🦁",
+    difficulty: 1,
+    description: "Đoán tên các con vật dễ thương",
+  },
 ];
 
 export default function Game() {
