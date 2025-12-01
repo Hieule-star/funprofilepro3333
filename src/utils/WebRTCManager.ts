@@ -9,6 +9,7 @@ export class WebRTCManager {
   private onRemoteStream?: (stream: MediaStream) => void;
   private onCallEnded?: () => void;
   private isCallerRole: boolean = true;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
 
   constructor(
     userId: string,
@@ -43,6 +44,14 @@ export class WebRTCManager {
           senderId: this.userId,
           conversationId: this.conversationId
         }));
+        
+        // Start heartbeat to keep connection alive
+        this.heartbeatInterval = setInterval(() => {
+          if (this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({ type: 'ping' }));
+            console.log('Heartbeat ping sent');
+          }
+        }, 15000); // Ping every 15 seconds
         
         // If callee, send ready signal after joining
         if (!this.isCallerRole) {
@@ -259,6 +268,13 @@ export class WebRTCManager {
   }
 
   private cleanup() {
+    // Clear heartbeat
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+      console.log('Heartbeat stopped');
+    }
+    
     this.localStream?.getTracks().forEach(track => track.stop());
     this.pc?.close();
     this.ws?.close();
