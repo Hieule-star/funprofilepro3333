@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -20,114 +20,130 @@ interface CallSignalingHook {
 }
 
 export const useCallSignaling = (userId: string | undefined): CallSignalingHook => {
-  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const [myChannel, setMyChannel] = useState<RealtimeChannel | null>(null);
   const [incomingCall, setIncomingCall] = useState<CallInvitation | null>(null);
   const [callAccepted, setCallAccepted] = useState<{ callerId: string; conversationId: string } | null>(null);
   const [callRejected, setCallRejected] = useState(false);
+  const ringtoneRef = useRef<HTMLAudioElement | null>(null);
+
+  // Play ringtone when incoming call
+  useEffect(() => {
+    if (incomingCall) {
+      ringtoneRef.current = new Audio('/sounds/message-notification.mp3');
+      ringtoneRef.current.loop = true;
+      ringtoneRef.current.volume = 0.5;
+      ringtoneRef.current.play().catch(console.error);
+    } else {
+      ringtoneRef.current?.pause();
+      ringtoneRef.current = null;
+    }
+    
+    return () => {
+      ringtoneRef.current?.pause();
+    };
+  }, [incomingCall]);
 
   useEffect(() => {
     if (!userId) return;
 
-    const callChannel = supabase.channel(`call-signaling-${userId}`);
+    // Subscribe to MY OWN channel to RECEIVE messages
+    const channel = supabase.channel(`call-signaling-${userId}`);
 
-    // Listen for incoming calls
-    callChannel.on('broadcast', { event: 'call-invitation' }, ({ payload }) => {
+    channel.on('broadcast', { event: 'call-invitation' }, ({ payload }) => {
       console.log('Received call invitation:', payload);
-      if (payload.targetUserId === userId) {
-        setIncomingCall({
-          callerId: payload.callerId,
-          callerName: payload.callerName,
-          callerAvatar: payload.callerAvatar,
-          conversationId: payload.conversationId,
-          timestamp: Date.now()
-        });
-      }
+      setIncomingCall({
+        callerId: payload.callerId,
+        callerName: payload.callerName,
+        callerAvatar: payload.callerAvatar,
+        conversationId: payload.conversationId,
+        timestamp: Date.now()
+      });
     });
 
-    // Listen for call acceptance
-    callChannel.on('broadcast', { event: 'call-accepted' }, ({ payload }) => {
+    channel.on('broadcast', { event: 'call-accepted' }, ({ payload }) => {
       console.log('Call accepted:', payload);
-      if (payload.callerId === userId) {
-        setCallAccepted({
-          callerId: payload.targetUserId,
-          conversationId: payload.conversationId
-        });
-        setCallRejected(false);
-      }
+      setCallAccepted({
+        callerId: payload.accepterId,
+        conversationId: payload.conversationId
+      });
+      setCallRejected(false);
     });
 
-    // Listen for call rejection
-    callChannel.on('broadcast', { event: 'call-rejected' }, ({ payload }) => {
+    channel.on('broadcast', { event: 'call-rejected' }, ({ payload }) => {
       console.log('Call rejected:', payload);
-      if (payload.callerId === userId) {
-        setCallRejected(true);
-        setCallAccepted(null);
-      }
+      setCallRejected(true);
+      setCallAccepted(null);
     });
 
-    callChannel.subscribe();
-    setChannel(callChannel);
+    channel.subscribe();
+    setMyChannel(channel);
 
     return () => {
-      callChannel.unsubscribe();
+      channel.unsubscribe();
     };
   }, [userId]);
 
+  // Helper: Send to TARGET user's channel
+  const sendToUser = useCallback(async (targetUserId: string, event: string, payload: any) => {
+    const targetChannel = supabase.channel(`call-signaling-${targetUserId}`);
+    
+    await targetChannel.subscribe();
+    
+    await targetChannel.send({
+      type: 'broadcast',
+      event,
+      payload
+    });
+
+    // Cleanup after sending
+    setTimeout(() => {
+      targetChannel.unsubscribe();
+    }, 1000);
+  }, []);
+
   const initiateCall = useCallback((targetUserId: string, conversationId: string, callerInfo: { name: string; avatar?: string }) => {
-    if (!channel || !userId) return;
+    if (!userId) return;
 
     console.log('Initiating call to:', targetUserId);
     setCallRejected(false);
     setCallAccepted(null);
 
-    channel.send({
-      type: 'broadcast',
-      event: 'call-invitation',
-      payload: {
-        callerId: userId,
-        callerName: callerInfo.name,
-        callerAvatar: callerInfo.avatar,
-        targetUserId,
-        conversationId,
-        timestamp: Date.now()
-      }
+    // Send to TARGET user's channel
+    sendToUser(targetUserId, 'call-invitation', {
+      callerId: userId,
+      callerName: callerInfo.name,
+      callerAvatar: callerInfo.avatar,
+      conversationId,
+      timestamp: Date.now()
     });
-  }, [channel, userId]);
+  }, [userId, sendToUser]);
 
   const acceptCall = useCallback((callerId: string) => {
-    if (!channel || !userId || !incomingCall) return;
+    if (!userId || !incomingCall) return;
 
     console.log('Accepting call from:', callerId);
     
-    channel.send({
-      type: 'broadcast',
-      event: 'call-accepted',
-      payload: {
-        callerId,
-        targetUserId: userId,
-        conversationId: incomingCall.conversationId
-      }
+    // Send acceptance back to CALLER's channel
+    sendToUser(callerId, 'call-accepted', {
+      accepterId: userId,
+      conversationId: incomingCall.conversationId
     });
 
     setIncomingCall(null);
-  }, [channel, userId, incomingCall]);
+  }, [userId, incomingCall, sendToUser]);
 
   const rejectCall = useCallback((callerId: string) => {
-    if (!channel || !userId) return;
+    if (!userId) return;
 
     console.log('Rejecting call from:', callerId);
 
-    channel.send({
-      type: 'broadcast',
-      event: 'call-rejected',
-      payload: {
-        callerId,
-        targetUserId: userId
-      }
+    // Send rejection back to CALLER's channel
+    sendToUser(callerId, 'call-rejected', {
+      rejecterId: userId
     });
 
     setIncomingCall(null);
-  }, [channel, userId]);
+  }, [userId, sendToUser]);
 
   return {
     initiateCall,
