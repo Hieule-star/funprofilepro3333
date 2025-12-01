@@ -17,11 +17,11 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    --primary: 142 76% 36%;
+    --primary: 174 60% 45%;
     --primary-foreground: 0 0% 100%;
     
-    --primary-light: 142 76% 45%;
-    --primary-dark: 142 76% 28%;
+    --primary-light: 174 60% 55%;
+    --primary-dark: 174 60% 35%;
 
     --secondary: 45 93% 47%;
     --secondary-foreground: 0 0% 10%;
@@ -31,27 +31,27 @@ All colors MUST be HSL.
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 142 76% 36%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 0 0% 96%;
+    --accent-foreground: 0 0% 10%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 142 76% 36%;
+    --ring: 174 60% 45%;
 
     --radius: 0.75rem;
 
     /* Custom colors for Web3 theme */
-    --success: 142 76% 36%;
+    --success: 174 60% 45%;
     --warning: 45 93% 47%;
     --info: 199 89% 48%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 45%));
+    --gradient-primary: linear-gradient(135deg, hsl(174 60% 45%), hsl(174 60% 55%));
     --gradient-secondary: linear-gradient(135deg, hsl(45 93% 47%), hsl(45 93% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(142 76% 28%), hsl(142 76% 36%), hsl(45 93% 47%));
+    --gradient-hero: linear-gradient(135deg, hsl(174 60% 35%), hsl(174 60% 45%), hsl(45 93% 47%));
     
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -70,11 +70,11 @@ All colors MUST be HSL.
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 142 76% 45%;
+    --primary: 174 60% 50%;
     --primary-foreground: 0 0% 10%;
     
-    --primary-light: 142 76% 55%;
-    --primary-dark: 142 76% 35%;
+    --primary-light: 174 60% 60%;
+    --primary-dark: 174 60% 40%;
 
     --secondary: 45 93% 55%;
     --secondary-foreground: 0 0% 10%;
@@ -84,25 +84,25 @@ All colors MUST be HSL.
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 65%;
 
-    --accent: 142 76% 45%;
-    --accent-foreground: 0 0% 10%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 142 76% 45%;
+    --ring: 174 60% 50%;
     
     /* Custom colors for Web3 theme - dark mode */
-    --success: 142 76% 45%;
+    --success: 174 60% 50%;
     --warning: 45 93% 55%;
     --info: 199 89% 58%;
     
     /* Gradients - dark mode */
-    --gradient-primary: linear-gradient(135deg, hsl(142 76% 35%), hsl(142 76% 45%));
+    --gradient-primary: linear-gradient(135deg, hsl(174 60% 40%), hsl(174 60% 50%));
     --gradient-secondary: linear-gradient(135deg, hsl(45 93% 47%), hsl(45 93% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(142 76% 25%), hsl(142 76% 35%), hsl(45 93% 45%));
+    --gradient-hero: linear-gradient(135deg, hsl(174 60% 30%), hsl(174 60% 40%), hsl(45 93% 45%));
     
     /* Shadows - dark mode */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);

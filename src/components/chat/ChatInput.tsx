@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Send, Smile, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
+import { Send, Smile, Paperclip, Mic, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -265,45 +265,53 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
         onSubmit={handleSubmit}
         className="border-t border-border bg-card p-4"
       >
-        <div className="flex items-center gap-2">
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="*/*"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-        
-        <Button 
-          type="button" 
-          variant="ghost" 
-          size="icon"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploading}
-        >
-          <Paperclip className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="*/*"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="shrink-0"
+          >
+            <Paperclip className="h-5 w-5" />
+          </Button>
 
-        <Input
-          value={message}
-          onChange={handleChange}
-          placeholder="Nhập tin nhắn..."
-          className="flex-1"
-          disabled={uploading}
-        />
+          <Input
+            value={message}
+            onChange={handleChange}
+            placeholder="Nhập tin nhắn..."
+            className="flex-1 rounded-full"
+            disabled={uploading}
+          />
 
-        <Button type="button" variant="ghost" size="icon" disabled={uploading}>
-          <Smile className="h-5 w-5" />
-        </Button>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            disabled={uploading}
+            className="shrink-0"
+          >
+            <Smile className="h-5 w-5" />
+          </Button>
 
-        <Button 
-          type="submit" 
-          size="icon" 
-          disabled={uploading || !message.trim()}
-        >
-          <Send className="h-5 w-5" />
-        </Button>
-      </div>
+          <Button 
+            type="submit" 
+            size="icon"
+            disabled={uploading}
+            className="shrink-0 h-10 w-10 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Mic className="h-5 w-5" />
+          </Button>
+        </div>
       </form>
     </>
   );

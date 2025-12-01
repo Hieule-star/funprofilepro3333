@@ -2,11 +2,11 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import ConversationItem from "./ConversationItem";
-import OnlineFriends from "./OnlineFriends";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, MessageSquarePlus } from "lucide-react";
+import { Search, Settings, MessageCircle, Phone } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import NewConversationModal from "./NewConversationModal";
 
 interface ChatSidebarProps {
@@ -128,29 +128,42 @@ export default function ChatSidebar({
 
   return (
     <div className="w-80 border-r border-border bg-card flex flex-col">
+      {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">Chat</h2>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => setShowNewConversationModal(true)}
-            title="Cuộc trò chuyện mới"
-          >
-            <MessageSquarePlus className="h-5 w-5" />
+          <h2 className="text-xl font-bold text-primary">ChatCall</h2>
+          <Button size="icon" variant="ghost">
+            <Settings className="h-5 w-5" />
           </Button>
         </div>
-        <div className="relative">
+        
+        {/* Search */}
+        <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Tìm kiếm cuộc trò chuyện..."
+            placeholder="Tìm kiếm..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 rounded-full"
           />
         </div>
+        
+        {/* Tabs */}
+        <Tabs defaultValue="messages" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="messages" className="gap-2">
+              <MessageCircle className="h-4 w-4" />
+              Tin nhắn
+            </TabsTrigger>
+            <TabsTrigger value="calls" className="gap-2">
+              <Phone className="h-4 w-4" />
+              Cuộc gọi
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
       </div>
 
+      {/* Conversations List */}
       <ScrollArea className="flex-1">
         <div className="p-2">
           {filteredConversations.length === 0 ? (
@@ -171,8 +184,14 @@ export default function ChatSidebar({
         </div>
       </ScrollArea>
 
-      <div className="border-t border-border">
-        <OnlineFriends onFriendClick={handleConversationCreated} />
+      {/* New Conversation Button */}
+      <div className="p-4 border-t border-border">
+        <Button
+          onClick={() => setShowNewConversationModal(true)}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+        >
+          Cuộc trò chuyện mới
+        </Button>
       </div>
 
       <NewConversationModal
