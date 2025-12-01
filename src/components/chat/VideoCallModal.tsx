@@ -35,73 +35,108 @@ export default function VideoCallModal({
   const [callStatus, setCallStatus] = useState<'waiting' | 'connecting' | 'connected' | 'ended'>(
     isCaller ? 'waiting' : 'connecting'
   );
+  const [isInitialized, setIsInitialized] = useState(false);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const webrtcManagerRef = useRef<WebRTCManager | null>(null);
 
-  // Wait for call acceptance before initializing WebRTC
+  // Cleanup only on unmount
   useEffect(() => {
-    if (!open) return;
+    return () => {
+      console.log('=== VideoCallModal: Unmounting, cleaning up ===');
+      if (webrtcManagerRef.current) {
+        webrtcManagerRef.current.endCall();
+        webrtcManagerRef.current = null;
+      }
+      setIsInitialized(false);
+    };
+  }, []);
+
+  // Initialize WebRTC connection
+  useEffect(() => {
+    if (!open) {
+      console.log('=== VideoCallModal: Modal closed, resetting ===');
+      setIsInitialized(false);
+      return;
+    }
+    
+    // Prevent re-initialization
+    if (isInitialized || webrtcManagerRef.current) {
+      console.log('=== VideoCallModal: Already initialized, skipping ===');
+      return;
+    }
     
     // Caller waits for acceptance
     if (isCaller && !callAccepted) {
+      console.log('=== VideoCallModal: Caller waiting for acceptance ===');
       setCallStatus('waiting');
       return;
     }
 
     // Once accepted or if callee, initialize WebRTC
     if (!isCaller || callAccepted) {
+      console.log('=== VideoCallModal: Initializing call ===');
+      console.log('isCaller:', isCaller, 'callAccepted:', callAccepted);
+      console.log('currentUserId:', currentUserId, 'targetUserId:', targetUserId);
+      
       setCallStatus('connecting');
+      setIsInitialized(true);
       
       const initializeCall = async () => {
         try {
+          console.log('=== Creating WebRTCManager ===');
           const manager = new WebRTCManager(
             currentUserId,
             targetUserId,
             conversationId,
             (remoteStream) => {
+              console.log('=== Received remote stream ===');
               if (remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = remoteStream;
                 setCallStatus('connected');
               }
             },
             () => {
+              console.log('=== Call ended by peer ===');
               setCallStatus('ended');
               onOpenChange(false);
             }
           );
 
           webrtcManagerRef.current = manager;
+          
+          console.log('=== Calling manager.initialize() ===');
           await manager.initialize(isCaller);
+          console.log('=== manager.initialize() completed ===');
 
           let localStream: MediaStream;
           if (isCaller) {
+            console.log('=== Starting call as caller ===');
             localStream = await manager.startCall(
               videoEnabled,
               selectedDevices?.videoDeviceId,
               selectedDevices?.audioDeviceId
             );
           } else {
+            console.log('=== Answering call as callee ===');
             localStream = await manager.answerCall(videoEnabled);
           }
 
           if (localVideoRef.current) {
             localVideoRef.current.srcObject = localStream;
+            console.log('=== Local stream set to video element ===');
           }
         } catch (error) {
-          console.error("Error initializing call:", error);
+          console.error("=== Error initializing call ===", error);
+          setIsInitialized(false);
           onOpenChange(false);
         }
       };
 
       initializeCall();
     }
-
-    return () => {
-      webrtcManagerRef.current?.endCall();
-    };
-  }, [open, currentUserId, targetUserId, conversationId, isCaller, callAccepted, videoEnabled]);
+  }, [open, currentUserId, targetUserId, conversationId, isCaller, callAccepted, isInitialized]);
 
   const toggleAudio = () => {
     const newState = !audioEnabled;
