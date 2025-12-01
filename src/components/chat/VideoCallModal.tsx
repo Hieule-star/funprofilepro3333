@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2 } from "lucide-react";
-import { WebRTCManager } from "@/utils/WebRTCManager";
+import { WebRTCManager, SignalingStep } from "@/utils/WebRTCManager";
 import { useWebRTCSignaling, SignalPayload } from "@/hooks/useWebRTCSignaling";
 
 interface VideoCallModalProps {
@@ -34,6 +34,8 @@ export default function VideoCallModal({
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'ended'>('connecting');
+  const [signalingStep, setSignalingStep] = useState<SignalingStep>('idle');
+  const [peerConnectionState, setPeerConnectionState] = useState<string>('new');
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -82,9 +84,14 @@ export default function VideoCallModal({
           },
           (state) => {
             console.log('[VideoCallModal] Connection state:', state);
+            setPeerConnectionState(state);
             if (state === 'disconnected' || state === 'failed' || state === 'closed') {
               setCallStatus('ended');
             }
+          },
+          (step) => {
+            console.log('[VideoCallModal] Signaling step:', step);
+            setSignalingStep(step);
           }
         );
 
@@ -137,6 +144,8 @@ export default function VideoCallModal({
   useEffect(() => {
     if (!open) {
       initRef.current = false;
+      setSignalingStep('idle');
+      setPeerConnectionState('new');
       if (webrtcManagerRef.current) {
         webrtcManagerRef.current.endCall();
         webrtcManagerRef.current = null;
@@ -230,6 +239,29 @@ export default function VideoCallModal({
             >
               <PhoneOff className="h-6 w-6" />
             </Button>
+          </div>
+
+          {/* Debug Status - Bottom Left */}
+          <div className="absolute bottom-8 left-4 bg-black/70 backdrop-blur-sm px-3 py-2 rounded-lg text-xs font-mono space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400">Signaling:</span>
+              <span className={`font-bold ${
+                signalingStep === 'signaling-done' ? 'text-green-400' : 
+                signalingStep === 'idle' ? 'text-gray-400' : 'text-yellow-400'
+              }`}>
+                {signalingStep}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400">Connection:</span>
+              <span className={`font-bold ${
+                peerConnectionState === 'connected' ? 'text-green-400' : 
+                peerConnectionState === 'failed' ? 'text-red-400' : 
+                peerConnectionState === 'new' ? 'text-gray-400' : 'text-yellow-400'
+              }`}>
+                {peerConnectionState}
+              </span>
+            </div>
           </div>
         </div>
       </DialogContent>

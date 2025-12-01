@@ -1,5 +1,7 @@
 import { SignalPayload } from "@/hooks/useWebRTCSignaling";
 
+export type SignalingStep = 'idle' | 'ready-sent' | 'offer-sent' | 'answer-sent' | 'ice-exchanging' | 'signaling-done';
+
 export class WebRTCManager {
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
@@ -11,15 +13,18 @@ export class WebRTCManager {
   // Callbacks
   private onRemoteStream?: (stream: MediaStream) => void;
   private onConnectionStateChange?: (state: RTCPeerConnectionState) => void;
+  private onSignalingStepChange?: (step: SignalingStep) => void;
 
   constructor(
     userId: string,
     onRemoteStream?: (stream: MediaStream) => void,
-    onConnectionStateChange?: (state: RTCPeerConnectionState) => void
+    onConnectionStateChange?: (state: RTCPeerConnectionState) => void,
+    onSignalingStepChange?: (step: SignalingStep) => void
   ) {
     this.userId = userId;
     this.onRemoteStream = onRemoteStream;
     this.onConnectionStateChange = onConnectionStateChange;
+    this.onSignalingStepChange = onSignalingStepChange;
   }
 
   // Set sendSignal callback from hook
@@ -94,6 +99,7 @@ export class WebRTCManager {
 
     // Send ready signal to caller
     console.log('[WebRTCManager] Callee sending ready signal');
+    this.onSignalingStepChange?.('ready-sent');
     this.sendSignal?.({
       type: 'webrtc-ready',
       senderId: this.userId
@@ -111,6 +117,7 @@ export class WebRTCManager {
     await this.pc.setLocalDescription(offer);
     
     console.log('[WEBRTC] sending offer');
+    this.onSignalingStepChange?.('offer-sent');
     this.sendSignal?.({
       type: 'webrtc-offer',
       senderId: this.userId,
@@ -129,6 +136,7 @@ export class WebRTCManager {
     await this.pc.setLocalDescription(answer);
     
     console.log('[WEBRTC] sending answer');
+    this.onSignalingStepChange?.('answer-sent');
     this.sendSignal?.({
       type: 'webrtc-answer',
       senderId: this.userId,
@@ -150,6 +158,7 @@ export class WebRTCManager {
     
     try {
       console.log('[WEBRTC] addIceCandidate', candidate);
+      this.onSignalingStepChange?.('ice-exchanging');
       await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
       console.error('[WEBRTC] Error adding ICE candidate:', error);
@@ -170,6 +179,7 @@ export class WebRTCManager {
     this.pc.onicecandidate = (event) => {
       if (event.candidate) {
         console.log('[WEBRTC] sending ICE candidate');
+        this.onSignalingStepChange?.('ice-exchanging');
         this.sendSignal?.({
           type: 'webrtc-ice-candidate',
           senderId: this.userId,
@@ -191,6 +201,9 @@ export class WebRTCManager {
     // Monitor connection state
     this.pc.onconnectionstatechange = () => {
       console.log('[WEBRTC] connectionState', this.pc?.connectionState);
+      if (this.pc?.connectionState === 'connected') {
+        this.onSignalingStepChange?.('signaling-done');
+      }
       this.onConnectionStateChange?.(this.pc?.connectionState || 'closed');
     };
 
