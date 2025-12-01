@@ -188,9 +188,21 @@ export default function Chat() {
   }, [isCaller, callAccepted, callRejected, pendingCallTarget, toast]);
 
   const handleVideoCall = () => {
-    if (!selectedConversation || !profile) return;
+    if (!selectedConversation || !profile || !user) return;
     
-    const targetUser = selectedConversation.participants[0];
+    // Find the OTHER participant (not the current user)
+    const targetUser = selectedConversation.participants.find(
+      (p: any) => p.user_id !== user.id
+    );
+    
+    if (!targetUser) {
+      toast({
+        title: "Lỗi",
+        description: "Không tìm thấy người dùng để gọi",
+        variant: "destructive"
+      });
+      return;
+    }
     
     // Store call target info
     setPendingCallTarget({
@@ -332,8 +344,12 @@ export default function Chat() {
             }
           }}
           currentUserId={user?.id || ""}
-          targetUserId={selectedConversation.participants[0]?.user_id || ""}
-          targetUsername={selectedConversation.participants[0]?.profiles?.username || ""}
+          targetUserId={selectedConversation.participants.find(
+            (p: any) => p.user_id !== user?.id
+          )?.user_id || ""}
+          targetUsername={selectedConversation.participants.find(
+            (p: any) => p.user_id !== user?.id
+          )?.profiles?.username || ""}
           conversationId={selectedConversation.id}
           isCaller={isCaller}
           callAccepted={!!callAccepted}
