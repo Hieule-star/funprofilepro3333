@@ -2,6 +2,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import PuzzleSlider from "./PuzzleSlider";
 import MemoryGame from "./MemoryGame";
 import TicTacToe from "./TicTacToe";
+import ColorMatch from "./ColorMatch";
+import MathKids from "./MathKids";
+import WordScramble from "./WordScramble";
+import CatchStars from "./CatchStars";
+import AnimalQuiz from "./AnimalQuiz";
 
 interface GameModalProps {
   gameId: string | null;
@@ -17,6 +22,16 @@ export default function GameModal({ gameId, onClose }: GameModalProps) {
         return <MemoryGame onClose={onClose} />;
       case "tic-tac-toe":
         return <TicTacToe onClose={onClose} />;
+      case "color-match":
+        return <ColorMatch onClose={onClose} />;
+      case "math-kids":
+        return <MathKids onClose={onClose} />;
+      case "word-scramble":
+        return <WordScramble onClose={onClose} />;
+      case "catch-stars":
+        return <CatchStars onClose={onClose} />;
+      case "animal-quiz":
+        return <AnimalQuiz onClose={onClose} />;
       default:
         return null;
     }
@@ -30,6 +45,16 @@ export default function GameModal({ gameId, onClose }: GameModalProps) {
         return "🃏 Memory Cards";
       case "tic-tac-toe":
         return "🎯 Tic-Tac-Toe";
+      case "color-match":
+        return "🎨 Color Match";
+      case "math-kids":
+        return "🔢 Math Kids";
+      case "word-scramble":
+        return "📝 Word Scramble";
+      case "catch-stars":
+        return "⭐ Catch Stars";
+      case "animal-quiz":
+        return "🦁 Animal Quiz";
       default:
         return "Game";
     }
