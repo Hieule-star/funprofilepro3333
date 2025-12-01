@@ -15,6 +15,9 @@ verify_jwt = false
 [functions.realtime-video]
 verify_jwt = false
 
+[functions.agora-token]
+verify_jwt = false
+
 [functions.claim-camly]
 verify_jwt = true
 

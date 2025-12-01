@@ -5,7 +5,7 @@ import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatHeader from "@/components/chat/ChatHeader";
 import MessageList from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
-import VideoCallModal from "@/components/chat/VideoCallModal";
+import AgoraVideoCallModal from "@/components/chat/AgoraVideoCallModal";
 import DeviceSelectionModal from "@/components/chat/DeviceSelectionModal";
 import OutgoingCallModal from "@/components/chat/OutgoingCallModal";
 import { supabase } from "@/integrations/supabase/client";
@@ -346,7 +346,7 @@ export default function Chat() {
       )}
 
       {videoCallOpen && (callAccepted || activeCallAsCallee) && (
-        <VideoCallModal
+        <AgoraVideoCallModal
           open={videoCallOpen}
           onOpenChange={(open) => {
             setVideoCallOpen(open);
@@ -356,25 +356,18 @@ export default function Chat() {
               clearActiveCall();
             }
           }}
-          currentUserId={user?.id || ""}
-          targetUserId={
+          conversationId={
             isCaller 
-              ? selectedConversation?.participants.find((p: any) => p.user_id !== user?.id)?.user_id || ""
-              : activeCallAsCallee?.callerId || ""
+              ? selectedConversation?.id || ""
+              : activeCallAsCallee?.conversationId || ""
           }
           targetUsername={
             isCaller
               ? selectedConversation?.participants.find((p: any) => p.user_id !== user?.id)?.profiles?.username || ""
               : "Người gọi"
           }
-          conversationId={
-            isCaller 
-              ? selectedConversation?.id || ""
-              : activeCallAsCallee?.conversationId || ""
-          }
-          isCaller={isCaller}
-          callAccepted={!!callAccepted || !!activeCallAsCallee}
-          selectedDevices={selectedDevices}
+          selectedVideoDeviceId={selectedDevices?.videoDeviceId}
+          selectedAudioDeviceId={selectedDevices?.audioDeviceId}
         />
       )}
     </div>
