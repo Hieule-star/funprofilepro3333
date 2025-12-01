@@ -17,12 +17,15 @@ export interface CallSignalingHook {
   incomingCall: CallInvitation | null;
   callAccepted: { callerId: string; conversationId: string } | null;
   callRejected: boolean;
+  activeCallAsCallee: { callerId: string; conversationId: string } | null;
+  clearActiveCall: () => void;
 }
 
 export const useCallSignaling = (userId: string | undefined): CallSignalingHook => {
   const [incomingCall, setIncomingCall] = useState<CallInvitation | null>(null);
   const [callAccepted, setCallAccepted] = useState<{ callerId: string; conversationId: string } | null>(null);
   const [callRejected, setCallRejected] = useState(false);
+  const [activeCallAsCallee, setActiveCallAsCallee] = useState<{ callerId: string; conversationId: string } | null>(null);
   const ringtoneRef = useRef<HTMLAudioElement | null>(null);
   const outgoingChannelsRef = useRef<Map<string, RealtimeChannel>>(new Map());
 
@@ -184,6 +187,12 @@ export const useCallSignaling = (userId: string | undefined): CallSignalingHook 
 
     console.log('Accepting call from:', callerId);
     
+    // Store call info for callee to know they're in an active call
+    setActiveCallAsCallee({
+      callerId: callerId,
+      conversationId: incomingCall.conversationId
+    });
+    
     // Send acceptance back to CALLER's channel
     sendToUser(callerId, 'call-accepted', {
       accepterId: userId,
@@ -206,12 +215,21 @@ export const useCallSignaling = (userId: string | undefined): CallSignalingHook 
     setIncomingCall(null);
   }, [userId, sendToUser]);
 
+  const clearActiveCall = useCallback(() => {
+    console.log('Clearing all active call states');
+    setActiveCallAsCallee(null);
+    setCallAccepted(null);
+    setCallRejected(false);
+  }, []);
+
   return {
     initiateCall,
     acceptCall,
     rejectCall,
     incomingCall,
     callAccepted,
-    callRejected
+    callRejected,
+    activeCallAsCallee,
+    clearActiveCall
   };
 };
