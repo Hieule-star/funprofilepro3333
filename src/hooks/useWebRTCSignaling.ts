@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -11,6 +11,7 @@ export interface SignalPayload {
 interface UseWebRTCSignalingReturn {
   sendSignal: (payload: SignalPayload) => void;
   isConnected: boolean;
+  waitForConnection: () => Promise<void>;
 }
 
 export function useWebRTCSignaling(
@@ -19,7 +20,8 @@ export function useWebRTCSignaling(
   onSignal: (payload: SignalPayload) => void
 ): UseWebRTCSignalingReturn {
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const isConnectedRef = useRef(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const connectionResolveRef = useRef<(() => void) | null>(null);
   const onSignalRef = useRef(onSignal);
 
   // Keep callback ref updated
@@ -32,7 +34,7 @@ export function useWebRTCSignaling(
     if (!roomId || !currentUserId) return;
 
     const channelName = `webrtc:room-${roomId}`;
-    console.log(`[WebRTC] Subscribing to channel: ${channelName}`);
+    console.log(`[SIGNAL] subscribe channel`, roomId, currentUserId);
     
     const channel = supabase.channel(channelName, {
       config: {
@@ -46,32 +48,50 @@ export function useWebRTCSignaling(
         
         // Only process signals from OTHER users
         if (payload.senderId === currentUserId) {
-          console.log('[WebRTC] Ignoring own signal');
+          console.log('[SIGNAL] Ignoring own signal');
           return;
         }
         
-        console.log(`[WebRTC] Received signal: ${payload.type} from ${payload.senderId}`);
+        console.log(`[SIGNAL] received`, payload);
         onSignalRef.current(payload);
       })
       .subscribe((status) => {
-        console.log(`[WebRTC] Channel status: ${status}`);
-        isConnectedRef.current = status === 'SUBSCRIBED';
+        console.log(`[SIGNAL] channel status:`, status);
+        if (status === 'SUBSCRIBED') {
+          setIsConnected(true);
+          connectionResolveRef.current?.();
+        } else {
+          setIsConnected(false);
+        }
       });
 
     channelRef.current = channel;
 
     return () => {
-      console.log('[WebRTC] Cleaning up channel');
+      console.log('[SIGNAL] Cleaning up channel');
       channel.unsubscribe();
       channelRef.current = null;
-      isConnectedRef.current = false;
+      setIsConnected(false);
+      connectionResolveRef.current = null;
     };
   }, [roomId, currentUserId]);
+
+  // Wait for connection to be ready
+  const waitForConnection = useCallback((): Promise<void> => {
+    if (channelRef.current?.state === 'joined') {
+      console.log('[SIGNAL] Channel already connected');
+      return Promise.resolve();
+    }
+    console.log('[SIGNAL] Waiting for channel connection...');
+    return new Promise((resolve) => {
+      connectionResolveRef.current = resolve;
+    });
+  }, []);
 
   // Send signal to the shared channel
   const sendSignal = useCallback((payload: SignalPayload) => {
     if (!channelRef.current) {
-      console.error('[WebRTC] Cannot send signal - channel not connected');
+      console.error('[SIGNAL] Cannot send - channel not connected');
       return;
     }
 
@@ -80,7 +100,7 @@ export function useWebRTCSignaling(
       senderId: currentUserId || ''
     };
 
-    console.log(`[WebRTC] Sending signal: ${payload.type}`);
+    console.log(`[SIGNAL] sending`, fullPayload);
     
     channelRef.current.send({
       type: 'broadcast',
@@ -91,6 +111,7 @@ export function useWebRTCSignaling(
 
   return {
     sendSignal,
-    isConnected: isConnectedRef.current
+    isConnected,
+    waitForConnection
   };
 }
