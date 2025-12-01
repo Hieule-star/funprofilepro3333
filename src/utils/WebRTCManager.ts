@@ -75,12 +75,23 @@ export class WebRTCManager {
     });
   }
 
-  async startCall(videoEnabled: boolean = true) {
+  async startCall(
+    videoEnabled: boolean = true, 
+    videoDeviceId?: string, 
+    audioDeviceId?: string
+  ) {
     try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: videoEnabled,
-        audio: true
-      });
+      const constraints: MediaStreamConstraints = {
+        video: videoEnabled 
+          ? (videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true)
+          : false,
+        audio: audioDeviceId 
+          ? { deviceId: { exact: audioDeviceId } } 
+          : true
+      };
+
+      console.log('Getting user media with constraints:', constraints);
+      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
       this.setupPeerConnection();
       
