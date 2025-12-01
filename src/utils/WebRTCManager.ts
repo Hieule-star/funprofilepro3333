@@ -8,6 +8,7 @@ export class WebRTCManager {
   private conversationId: string;
   private onRemoteStream?: (stream: MediaStream) => void;
   private onCallEnded?: () => void;
+  private isCallerRole: boolean = true;
 
   constructor(
     userId: string,
@@ -23,7 +24,8 @@ export class WebRTCManager {
     this.onCallEnded = onCallEnded;
   }
 
-  async initialize() {
+  async initialize(isCaller: boolean = true) {
+    this.isCallerRole = isCaller;
     return new Promise<void>((resolve, reject) => {
       const projectRef = "krajdsugcvwytpsqnbzs";
       this.ws = new WebSocket(`wss://${projectRef}.supabase.co/functions/v1/realtime-video`);
@@ -41,6 +43,19 @@ export class WebRTCManager {
           senderId: this.userId,
           conversationId: this.conversationId
         }));
+        
+        // If callee, send ready signal after joining
+        if (!this.isCallerRole) {
+          setTimeout(() => {
+            console.log("Callee sending ready signal to caller");
+            this.sendSignalingMessage({
+              type: 'ready',
+              senderId: this.userId,
+              targetId: this.targetUserId
+            });
+          }, 500);
+        }
+        
         resolve();
       };
 
@@ -49,6 +64,20 @@ export class WebRTCManager {
         console.log("Received signaling message:", message.type);
 
         switch (message.type) {
+          case 'peer-ready':
+            // Caller receives this - callee is ready, now send offer
+            if (this.isCallerRole && this.pc) {
+              console.log('Peer is ready, creating and sending offer...');
+              const offer = await this.pc.createOffer();
+              await this.pc.setLocalDescription(offer);
+              this.sendSignalingMessage({
+                type: 'offer',
+                targetId: this.targetUserId,
+                senderId: this.userId,
+                data: offer
+              });
+            }
+            break;
           case 'offer':
             await this.handleOffer(message.data);
             break;
@@ -99,15 +128,8 @@ export class WebRTCManager {
         this.pc?.addTrack(track, this.localStream!);
       });
 
-      const offer = await this.pc!.createOffer();
-      await this.pc!.setLocalDescription(offer);
-
-      this.sendSignalingMessage({
-        type: 'offer',
-        targetId: this.targetUserId,
-        senderId: this.userId,
-        data: offer
-      });
+      // Don't send offer immediately - wait for peer-ready signal
+      console.log("Caller setup complete, waiting for peer-ready signal...");
 
       return this.localStream;
     } catch (error) {
@@ -122,6 +144,15 @@ export class WebRTCManager {
         video: videoEnabled,
         audio: true
       });
+
+      // Setup peer connection for callee
+      this.setupPeerConnection();
+      
+      this.localStream.getTracks().forEach(track => {
+        this.pc?.addTrack(track, this.localStream!);
+      });
+
+      console.log("Callee setup complete, ready signal already sent");
 
       return this.localStream;
     } catch (error) {

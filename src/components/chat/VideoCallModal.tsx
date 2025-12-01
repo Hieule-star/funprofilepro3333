@@ -73,7 +73,7 @@ export default function VideoCallModal({
           );
 
           webrtcManagerRef.current = manager;
-          await manager.initialize();
+          await manager.initialize(isCaller);
 
           let localStream: MediaStream;
           if (isCaller) {
