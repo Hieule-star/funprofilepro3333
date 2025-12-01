@@ -57,7 +57,7 @@ export default function WalletHeader() {
     return (
       <>
         <Card className="border-primary/20 shadow-glow overflow-hidden">
-          <div className="bg-gradient-to-br from-green-800 via-green-600 to-amber-500">
+          <div className="bg-gradient-to-r from-green-500 via-green-400 to-yellow-400">
             <CardContent className="pt-6">
               <div className="text-center text-white drop-shadow-sm">
                 <div className="text-6xl mb-4">👛</div>
@@ -88,7 +88,7 @@ export default function WalletHeader() {
 
   return (
     <Card className="border-primary/20 shadow-glow overflow-hidden">
-      <div className="bg-gradient-to-br from-green-800 via-green-600 to-amber-500">
+      <div className="bg-gradient-to-r from-green-500 via-green-400 to-yellow-400">
         <CardContent className="pt-6">
           <div className="text-white drop-shadow-sm">
           {/* Network Badge & Actions */}
