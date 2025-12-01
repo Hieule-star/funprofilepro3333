@@ -63,19 +63,36 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
     })),
   ];
 
-  // Get quote from 0x API
+  // Get quote from OpenOcean API
   const fetchQuote = async () => {
     if (!fromAmount || parseFloat(fromAmount) <= 0 || chainId !== 56) return;
 
     setIsLoadingQuote(true);
     try {
-      const sellToken = fromToken === "BNB" ? "BNB" : fromToken;
-      const buyToken = toToken === "BNB" ? "BNB" : toToken;
-      const sellAmount = (parseFloat(fromAmount) * 1e18).toString();
+      const sellTokenInfo = availableTokens.find(t => t.address === fromToken);
+      const buyTokenInfo = availableTokens.find(t => t.address === toToken);
+      
+      const sellDecimals = sellTokenInfo?.decimals || 18;
+      const buyDecimals = buyTokenInfo?.decimals || 18;
+      
+      // Handle native BNB address for OpenOcean
+      const sellTokenAddress = fromToken === "BNB" 
+        ? "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" 
+        : fromToken;
+      const buyTokenAddress = toToken === "BNB" 
+        ? "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" 
+        : toToken;
+      
+      // Calculate amount with correct decimals
+      const sellAmount = (parseFloat(fromAmount) * Math.pow(10, sellDecimals)).toFixed(0);
 
+      // Use OpenOcean API for better liquidity
       const response = await fetch(
-        `https://bsc.api.0x.org/swap/v1/quote?` +
-        `sellToken=${sellToken}&buyToken=${buyToken}&sellAmount=${sellAmount}`
+        `https://open-api.openocean.finance/v3/bsc/quote?` +
+        `inTokenAddress=${sellTokenAddress}&` +
+        `outTokenAddress=${buyTokenAddress}&` +
+        `amount=${sellAmount}&` +
+        `gasPrice=5`
       );
 
       if (!response.ok) {
@@ -83,16 +100,31 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
       }
 
       const data = await response.json();
-      setSwapData(data);
-      setToAmount((parseFloat(data.buyAmount) / 1e18).toFixed(6));
+      
+      if (data.code !== 200 || !data.data) {
+        throw new Error(data.error || "Không tìm thấy đường đổi");
+      }
+      
+      setSwapData({
+        ...data.data,
+        sellDecimals,
+        buyDecimals,
+        sellTokenAddress,
+        buyTokenAddress,
+      });
+      
+      // Calculate output amount with correct decimals
+      const outAmount = parseFloat(data.data.outAmount) / Math.pow(10, buyDecimals);
+      setToAmount(outAmount.toFixed(6));
     } catch (error) {
       console.error("Error fetching quote:", error);
       toast({
         title: "Lỗi",
-        description: "Không thể lấy tỷ giá. Vui lòng thử lại.",
+        description: "Không tìm thấy đường đổi cho cặp token này. Vui lòng thử cặp khác.",
         variant: "destructive",
       });
       setToAmount("");
+      setSwapData(null);
     } finally {
       setIsLoadingQuote(false);
     }
@@ -120,16 +152,46 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
     }
 
     try {
+      const sellTokenInfo = availableTokens.find(t => t.address === fromToken);
+      const sellDecimals = sellTokenInfo?.decimals || 18;
+      
+      const sellTokenAddress = fromToken === "BNB" 
+        ? "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" 
+        : fromToken;
+      const buyTokenAddress = toToken === "BNB" 
+        ? "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" 
+        : toToken;
+      
+      const sellAmount = (parseFloat(fromAmount) * Math.pow(10, sellDecimals)).toFixed(0);
+
+      // Call OpenOcean swap API to get transaction data
+      const response = await fetch(
+        `https://open-api.openocean.finance/v3/bsc/swap?` +
+        `inTokenAddress=${sellTokenAddress}&` +
+        `outTokenAddress=${buyTokenAddress}&` +
+        `amount=${sellAmount}&` +
+        `gasPrice=5&` +
+        `slippage=1&` +
+        `account=${address}`
+      );
+
+      const data = await response.json();
+      
+      if (data.code !== 200 || !data.data) {
+        throw new Error(data.error || "Swap failed");
+      }
+
+      // Send transaction
       sendTransaction({
-        to: swapData.to as `0x${string}`,
-        data: swapData.data as `0x${string}`,
-        value: BigInt(swapData.value || "0"),
+        to: data.data.to as `0x${string}`,
+        data: data.data.data as `0x${string}`,
+        value: BigInt(data.data.value || "0"),
       });
     } catch (error) {
       console.error("Swap error:", error);
       toast({
         title: "Lỗi",
-        description: "Hoán đổi thất bại",
+        description: "Hoán đổi thất bại. Vui lòng thử lại.",
         variant: "destructive",
       });
     }
