@@ -11,6 +11,7 @@ import { wagmiConfig } from "@/lib/wagmi-config";
 import { privyConfig, isPrivyConfigured } from "@/lib/privy-config";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { RewardNotificationProvider } from "@/components/RewardNotificationProvider";
+import { MessageNotificationProvider } from "@/components/MessageNotificationProvider";
 import Navbar from "./components/Navbar";
 import Feed from "./pages/Feed";
 import Friends from "./pages/Friends";
@@ -44,8 +45,9 @@ const App = () => {
               <BrowserRouter>
                 <AuthProvider>
                   <RewardNotificationProvider>
-                    <WalletProvider>
-                      <Navbar />
+                    <MessageNotificationProvider>
+                      <WalletProvider>
+                        <Navbar />
                       <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route
@@ -131,7 +133,8 @@ const App = () => {
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                       </Routes>
-                    </WalletProvider>
+                      </WalletProvider>
+                    </MessageNotificationProvider>
                   </RewardNotificationProvider>
                 </AuthProvider>
               </BrowserRouter>
@@ -146,8 +149,9 @@ const App = () => {
             <BrowserRouter>
               <AuthProvider>
                 <RewardNotificationProvider>
-                  <WalletProvider>
-                    <Navbar />
+                  <MessageNotificationProvider>
+                    <WalletProvider>
+                      <Navbar />
                     <Routes>
                     <Route path="/auth" element={<Auth />} />
                     <Route
@@ -232,7 +236,8 @@ const App = () => {
                      />
                      <Route path="*" element={<NotFound />} />
                     </Routes>
-                  </WalletProvider>
+                    </WalletProvider>
+                  </MessageNotificationProvider>
                 </RewardNotificationProvider>
               </AuthProvider>
             </BrowserRouter>
