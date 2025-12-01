@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { useGameSounds } from "@/hooks/useGameSounds";
 
 interface ColorMatchProps {
   onClose: () => void;
@@ -31,6 +32,7 @@ interface ColorCard {
 
 export default function ColorMatch({ onClose }: ColorMatchProps) {
   const { user } = useAuth();
+  const { playCorrect, playCelebration } = useGameSounds();
   const [cards, setCards] = useState<ColorCard[]>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
@@ -78,6 +80,7 @@ export default function ColorMatch({ onClose }: ColorMatchProps) {
       const secondCard = newCards.find((c) => c.id === second);
 
       if (firstCard && secondCard && firstCard.colorIndex === secondCard.colorIndex) {
+        playCorrect();
         setTimeout(() => {
           setCards((prev) =>
             prev.map((c) =>
@@ -91,6 +94,7 @@ export default function ColorMatch({ onClose }: ColorMatchProps) {
             const finalScore = Math.max(100, 1000 - moves * 20);
             setScore(finalScore);
             setIsComplete(true);
+            playCelebration();
             confetti({
               particleCount: 100,
               spread: 70,
