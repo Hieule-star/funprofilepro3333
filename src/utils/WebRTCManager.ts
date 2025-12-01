@@ -29,7 +29,7 @@ export class WebRTCManager {
 
   // Handle incoming signals from hook
   async handleSignal(payload: SignalPayload) {
-    console.log(`[WebRTCManager] Handling signal: ${payload.type}`);
+    console.log(`[WEBRTC] handleSignal`, payload.type, payload);
     
     switch (payload.type) {
       case 'webrtc-ready':
@@ -106,11 +106,11 @@ export class WebRTCManager {
   private async onPeerReady() {
     if (!this.isCallerRole || !this.pc) return;
     
-    console.log('[WebRTCManager] Peer is ready, creating offer');
+    console.log('[WEBRTC] creating offer');
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
     
-    console.log('[WebRTCManager] Sending offer');
+    console.log('[WEBRTC] sending offer');
     this.sendSignal?.({
       type: 'webrtc-offer',
       senderId: this.userId,
@@ -122,13 +122,13 @@ export class WebRTCManager {
   private async handleOffer(offer: RTCSessionDescriptionInit) {
     if (!this.pc) return;
     
-    console.log('[WebRTCManager] Received offer, creating answer');
+    console.log('[WEBRTC] received offer, creating answer');
     await this.pc.setRemoteDescription(new RTCSessionDescription(offer));
     
     const answer = await this.pc.createAnswer();
     await this.pc.setLocalDescription(answer);
     
-    console.log('[WebRTCManager] Sending answer');
+    console.log('[WEBRTC] sending answer');
     this.sendSignal?.({
       type: 'webrtc-answer',
       senderId: this.userId,
@@ -140,7 +140,7 @@ export class WebRTCManager {
   private async handleAnswer(answer: RTCSessionDescriptionInit) {
     if (!this.pc) return;
     
-    console.log('[WebRTCManager] Received answer, setting remote description');
+    console.log('[WEBRTC] received answer, setting remote description');
     await this.pc.setRemoteDescription(new RTCSessionDescription(answer));
   }
 
@@ -149,10 +149,10 @@ export class WebRTCManager {
     if (!this.pc) return;
     
     try {
-      console.log('[WebRTCManager] Adding ICE candidate');
+      console.log('[WEBRTC] addIceCandidate', candidate);
       await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
-      console.error('[WebRTCManager] Error adding ICE candidate:', error);
+      console.error('[WEBRTC] Error adding ICE candidate:', error);
     }
   }
 
@@ -169,7 +169,7 @@ export class WebRTCManager {
     // Send ICE candidates to peer
     this.pc.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('[WebRTCManager] Sending ICE candidate');
+        console.log('[WEBRTC] sending ICE candidate');
         this.sendSignal?.({
           type: 'webrtc-ice-candidate',
           senderId: this.userId,
@@ -190,7 +190,7 @@ export class WebRTCManager {
 
     // Monitor connection state
     this.pc.onconnectionstatechange = () => {
-      console.log('[WebRTCManager] Connection state:', this.pc?.connectionState);
+      console.log('[WEBRTC] connectionState', this.pc?.connectionState);
       this.onConnectionStateChange?.(this.pc?.connectionState || 'closed');
     };
 

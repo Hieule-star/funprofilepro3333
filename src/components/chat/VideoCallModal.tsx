@@ -47,7 +47,7 @@ export default function VideoCallModal({
   }, []);
 
   // WebRTC signaling - use conversationId as roomId
-  const { sendSignal } = useWebRTCSignaling(
+  const { sendSignal, waitForConnection } = useWebRTCSignaling(
     open ? conversationId : undefined,
     currentUserId,
     handleSignal
@@ -64,6 +64,11 @@ export default function VideoCallModal({
       try {
         initRef.current = true;
         setCallStatus('connecting');
+
+        // Wait for signaling channel to be ready
+        console.log('[VideoCallModal] Waiting for signaling channel...');
+        await waitForConnection();
+        console.log('[VideoCallModal] Signaling channel ready!');
 
         // Create WebRTC manager
         const manager = new WebRTCManager(
@@ -115,7 +120,7 @@ export default function VideoCallModal({
     };
 
     initCall();
-  }, [open, currentUserId, isCaller, callAccepted, sendSignal, selectedDevices, videoEnabled, onOpenChange]);
+  }, [open, currentUserId, isCaller, callAccepted, sendSignal, waitForConnection, selectedDevices, videoEnabled, onOpenChange]);
 
   // Cleanup on close/unmount
   useEffect(() => {
