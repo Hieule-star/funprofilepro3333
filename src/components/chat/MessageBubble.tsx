@@ -55,7 +55,7 @@ export default function MessageBubble({ message, isSent }: MessageBubbleProps) {
             "rounded-2xl overflow-hidden",
             isSent
               ? "bg-primary text-primary-foreground"
-              : "bg-accent text-accent-foreground"
+              : "bg-muted text-foreground"
           )}
         >
           {message.media_url && message.media_type === "image" && (
