@@ -339,6 +339,115 @@ export type Database = {
           },
         ]
       }
+      game_room_players: {
+        Row: {
+          id: string
+          is_ready: boolean | null
+          joined_at: string
+          player_symbol: string | null
+          room_id: string
+          score: number | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          is_ready?: boolean | null
+          joined_at?: string
+          player_symbol?: string | null
+          room_id: string
+          score?: number | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          is_ready?: boolean | null
+          joined_at?: string
+          player_symbol?: string | null
+          room_id?: string
+          score?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_room_players_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "game_rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_room_players_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      game_rooms: {
+        Row: {
+          created_at: string
+          created_by: string
+          current_turn: string | null
+          game_state: Json | null
+          game_type: string
+          id: string
+          invite_code: string | null
+          is_private: boolean | null
+          status: string
+          updated_at: string
+          winner_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          current_turn?: string | null
+          game_state?: Json | null
+          game_type: string
+          id?: string
+          invite_code?: string | null
+          is_private?: boolean | null
+          status?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          current_turn?: string | null
+          game_state?: Json | null
+          game_type?: string
+          id?: string
+          invite_code?: string | null
+          is_private?: boolean | null
+          status?: string
+          updated_at?: string
+          winner_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_rooms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_rooms_current_turn_fkey"
+            columns: ["current_turn"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_rooms_winner_id_fkey"
+            columns: ["winner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       game_scores: {
         Row: {
           created_at: string
@@ -878,6 +987,7 @@ export type Database = {
         Args: { current_user_id: string; friend_id: string }
         Returns: string
       }
+      generate_invite_code: { Args: never; Returns: string }
       get_user_streak: { Args: { p_user_id: string }; Returns: number }
       has_role: {
         Args: {
