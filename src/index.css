@@ -17,16 +17,16 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
 
-    --primary: 174 60% 45%;
+    --primary: 130 70% 45%;
     --primary-foreground: 0 0% 100%;
     
-    --primary-light: 174 60% 55%;
-    --primary-dark: 174 60% 35%;
+    --primary-light: 130 70% 55%;
+    --primary-dark: 130 70% 35%;
 
-    --secondary: 45 93% 47%;
+    --secondary: 45 95% 50%;
     --secondary-foreground: 0 0% 10%;
     
-    --secondary-light: 45 93% 60%;
+    --secondary-light: 45 95% 60%;
 
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
@@ -39,25 +39,25 @@ All colors MUST be HSL.
 
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 174 60% 45%;
+    --ring: 130 70% 45%;
 
     --radius: 0.75rem;
 
     /* Custom colors for Web3 theme */
-    --success: 174 60% 45%;
-    --warning: 45 93% 47%;
+    --success: 130 70% 45%;
+    --warning: 45 95% 50%;
     --info: 199 89% 48%;
     
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(174 60% 45%), hsl(174 60% 55%));
-    --gradient-secondary: linear-gradient(135deg, hsl(45 93% 47%), hsl(45 93% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(174 60% 35%), hsl(174 60% 45%), hsl(45 93% 47%));
+    --gradient-primary: linear-gradient(135deg, hsl(130 70% 45%), hsl(130 70% 55%));
+    --gradient-secondary: linear-gradient(135deg, hsl(45 95% 50%), hsl(45 95% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(130 70% 40%), hsl(130 70% 50%), hsl(45 95% 50%));
     
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-    --shadow-glow: 0 0 20px rgba(34, 197, 94, 0.3);
+    --shadow-glow: 0 0 20px rgba(45, 183, 77, 0.3);
   }
 
   .dark {
@@ -70,16 +70,16 @@ All colors MUST be HSL.
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 174 60% 50%;
+    --primary: 130 70% 50%;
     --primary-foreground: 0 0% 10%;
     
-    --primary-light: 174 60% 60%;
-    --primary-dark: 174 60% 40%;
+    --primary-light: 130 70% 60%;
+    --primary-dark: 130 70% 40%;
 
-    --secondary: 45 93% 55%;
+    --secondary: 45 95% 55%;
     --secondary-foreground: 0 0% 10%;
     
-    --secondary-light: 45 93% 65%;
+    --secondary-light: 45 95% 65%;
 
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 65%;
@@ -92,17 +92,17 @@ All colors MUST be HSL.
 
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 174 60% 50%;
+    --ring: 130 70% 50%;
     
     /* Custom colors for Web3 theme - dark mode */
-    --success: 174 60% 50%;
-    --warning: 45 93% 55%;
+    --success: 130 70% 50%;
+    --warning: 45 95% 55%;
     --info: 199 89% 58%;
     
     /* Gradients - dark mode */
-    --gradient-primary: linear-gradient(135deg, hsl(174 60% 40%), hsl(174 60% 50%));
-    --gradient-secondary: linear-gradient(135deg, hsl(45 93% 47%), hsl(45 93% 60%));
-    --gradient-hero: linear-gradient(135deg, hsl(174 60% 30%), hsl(174 60% 40%), hsl(45 93% 45%));
+    --gradient-primary: linear-gradient(135deg, hsl(130 70% 40%), hsl(130 70% 50%));
+    --gradient-secondary: linear-gradient(135deg, hsl(45 95% 50%), hsl(45 95% 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(130 70% 30%), hsl(130 70% 50%), hsl(45 95% 50%));
     
     /* Shadows - dark mode */
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
