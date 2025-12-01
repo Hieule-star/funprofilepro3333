@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 interface WebSocketMessage {
-  type: 'offer' | 'answer' | 'ice-candidate' | 'join' | 'call' | 'call-response';
+  type: 'offer' | 'answer' | 'ice-candidate' | 'join' | 'call' | 'call-response' | 'ready' | 'peer-ready';
   conversationId?: string;
   senderId?: string;
   targetId?: string;
@@ -41,6 +41,22 @@ Deno.serve(async (req) => {
         userId = message.senderId;
         connections.set(userId, socket);
         console.log(`User ${userId} joined. Total connections: ${connections.size}`);
+        return;
+      }
+
+      // Handle ready signal from callee
+      if (message.type === 'ready' && message.senderId && message.targetId) {
+        console.log(`User ${message.senderId} is ready, notifying ${message.targetId}`);
+        if (connections.has(message.targetId)) {
+          const targetSocket = connections.get(message.targetId);
+          if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
+            targetSocket.send(JSON.stringify({
+              type: 'peer-ready',
+              senderId: message.senderId
+            }));
+            console.log(`Sent peer-ready to ${message.targetId}`);
+          }
+        }
         return;
       }
 
