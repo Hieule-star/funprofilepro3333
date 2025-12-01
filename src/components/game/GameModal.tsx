@@ -13,6 +13,12 @@ import SnakeGame from "./SnakeGame";
 import QuizMaster from "./QuizMaster";
 import ReactionTest from "./ReactionTest";
 import SimonSays from "./SimonSays";
+import Sudoku from "./Sudoku";
+import SpotDifference from "./SpotDifference";
+import JigsawPuzzle from "./JigsawPuzzle";
+import ProverbQuiz from "./ProverbQuiz";
+import Gomoku from "./Gomoku";
+import NumberSort from "./NumberSort";
 
 interface GameModalProps {
   gameId: string | null;
@@ -50,6 +56,18 @@ export default function GameModal({ gameId, onClose }: GameModalProps) {
         return <ReactionTest onClose={onClose} />;
       case "simon-says":
         return <SimonSays onClose={onClose} />;
+      case "sudoku":
+        return <Sudoku onClose={onClose} />;
+      case "spot-difference":
+        return <SpotDifference onClose={onClose} />;
+      case "jigsaw-puzzle":
+        return <JigsawPuzzle onClose={onClose} />;
+      case "proverb-quiz":
+        return <ProverbQuiz onClose={onClose} />;
+      case "gomoku":
+        return <Gomoku onClose={onClose} />;
+      case "number-sort":
+        return <NumberSort onClose={onClose} />;
       default:
         return null;
     }
@@ -85,6 +103,18 @@ export default function GameModal({ gameId, onClose }: GameModalProps) {
         return "⚡ Reaction Test";
       case "simon-says":
         return "🎵 Simon Says";
+      case "sudoku":
+        return "🔢 Sudoku";
+      case "spot-difference":
+        return "🔍 Tìm Điểm Khác";
+      case "jigsaw-puzzle":
+        return "🧩 Ghép Hình";
+      case "proverb-quiz":
+        return "📜 Đoán Thành Ngữ";
+      case "gomoku":
+        return "⭕ Cờ Caro";
+      case "number-sort":
+        return "🔢 Sắp Xếp Số";
       default:
         return "Game";
     }

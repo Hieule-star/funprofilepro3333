@@ -111,7 +111,52 @@ const teenGames = [
   },
 ];
 
-const allGames = [...kidsGames, ...teenGames];
+const seniorGames = [
+  {
+    id: "sudoku",
+    name: "Sudoku",
+    icon: "🔢",
+    difficulty: 3,
+    description: "Điền số 1-9 vào ô trống, rèn luyện tư duy",
+  },
+  {
+    id: "spot-difference",
+    name: "Tìm Điểm Khác",
+    icon: "🔍",
+    difficulty: 2,
+    description: "So sánh 2 hình và tìm điểm khác biệt",
+  },
+  {
+    id: "jigsaw-puzzle",
+    name: "Ghép Hình",
+    icon: "🧩",
+    difficulty: 2,
+    description: "Sắp xếp các mảnh ghép về đúng vị trí",
+  },
+  {
+    id: "proverb-quiz",
+    name: "Đoán Thành Ngữ",
+    icon: "📜",
+    difficulty: 2,
+    description: "Hoàn thành câu thành ngữ Việt Nam",
+  },
+  {
+    id: "gomoku",
+    name: "Cờ Caro",
+    icon: "⭕",
+    difficulty: 3,
+    description: "Xếp 5 quân liên tiếp để thắng máy",
+  },
+  {
+    id: "number-sort",
+    name: "Sắp Xếp Số",
+    icon: "🔢",
+    difficulty: 2,
+    description: "Di chuyển ô để sắp xếp số theo thứ tự",
+  },
+];
+
+const allGames = [...kidsGames, ...teenGames, ...seniorGames];
 
 export default function Game() {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
@@ -160,6 +205,19 @@ export default function Game() {
               <h2 className="text-2xl font-bold mb-4">👦 Dành cho Thanh Thiếu Niên</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {teenGames.map((game) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    onPlay={() => setSelectedGame(game.id)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold mb-4">👴 Dành cho Người Lớn Tuổi</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {seniorGames.map((game) => (
                   <GameCard
                     key={game.id}
                     game={game}
