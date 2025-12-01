@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { useGameSounds } from "@/hooks/useGameSounds";
 
 interface CatchStarsProps {
   onClose: () => void;
@@ -20,6 +21,7 @@ interface Star {
 
 export default function CatchStars({ onClose }: CatchStarsProps) {
   const { user } = useAuth();
+  const { playCorrect, playCelebration } = useGameSounds();
   const [stars, setStars] = useState<Star[]>([]);
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
@@ -77,6 +79,7 @@ export default function CatchStars({ onClose }: CatchStarsProps) {
           setIsPlaying(false);
           setIsComplete(true);
           if (score > 100) {
+            playCelebration();
             confetti({
               particleCount: 100,
               spread: 70,
@@ -93,6 +96,7 @@ export default function CatchStars({ onClose }: CatchStarsProps) {
   }, [isPlaying, timeLeft, score]);
 
   const catchStar = (starId: number, starType: "gold" | "blue") => {
+    playCorrect();
     setStars((prev) => prev.filter((s) => s.id !== starId));
     const points = starType === "gold" ? 10 : 5;
     setScore((prev) => prev + points);

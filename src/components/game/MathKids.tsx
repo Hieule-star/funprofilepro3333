@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { useGameSounds } from "@/hooks/useGameSounds";
 
 interface MathKidsProps {
   onClose: () => void;
@@ -24,6 +25,7 @@ interface Question {
 
 export default function MathKids({ onClose }: MathKidsProps) {
   const { user } = useAuth();
+  const { playCorrect, playCelebration } = useGameSounds();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -84,6 +86,7 @@ export default function MathKids({ onClose }: MathKidsProps) {
 
     const isCorrect = answer === questions[currentQuestion].answer;
     if (isCorrect) {
+      playCorrect();
       setScore((prev) => prev + 100);
       confetti({
         particleCount: 30,
@@ -99,6 +102,7 @@ export default function MathKids({ onClose }: MathKidsProps) {
         setShowResult(false);
       } else {
         setIsComplete(true);
+        playCelebration();
       }
     }, 1500);
   };

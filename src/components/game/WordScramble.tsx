@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
+import { useGameSounds } from "@/hooks/useGameSounds";
 
 interface WordScrambleProps {
   onClose: () => void;
@@ -26,6 +27,7 @@ const WORDS = [
 
 export default function WordScramble({ onClose }: WordScrambleProps) {
   const { user } = useAuth();
+  const { playCorrect, playCelebration } = useGameSounds();
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [shuffledLetters, setShuffledLetters] = useState<string[]>([]);
   const [selectedLetters, setSelectedLetters] = useState<number[]>([]);
@@ -78,6 +80,7 @@ export default function WordScramble({ onClose }: WordScrambleProps) {
         const isCorrect = formed === gameWords[currentWordIndex].word;
 
         if (isCorrect) {
+          playCorrect();
           const points = showHint ? 50 : 100;
           setScore((prev) => prev + points);
           confetti({
@@ -91,6 +94,7 @@ export default function WordScramble({ onClose }: WordScrambleProps) {
               setCurrentWordIndex((prev) => prev + 1);
             } else {
               setIsComplete(true);
+              playCelebration();
             }
           }, 1000);
         } else {
