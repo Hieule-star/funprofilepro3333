@@ -1,4 +1,3 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
@@ -6,58 +5,98 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Agora Token Builder Implementation using native Deno crypto
-class AgoraTokenBuilder {
+// Agora RTC Token Builder (AccessToken2 implementation)
+class AgoraAccessToken {
   static VERSION = "007";
+  
+  static Role = {
+    PUBLISHER: 1,
+    SUBSCRIBER: 2,
+  };
 
   static async buildTokenWithUid(
     appId: string,
     appCertificate: string,
     channelName: string,
     uid: number,
-    privilegeExpiredTs: number
+    role: number,
+    privilegeExpireTs: number
   ): Promise<string> {
-    // Create the message structure
-    const salt = Math.floor(Math.random() * 100000);
+    // Create message content
+    const salt = Math.floor(Math.random() * 100000000);
     const ts = Math.floor(Date.now() / 1000);
     
-    const message = {
-      salt,
-      ts,
-      messages: {
-        "1": privilegeExpiredTs, // Join channel
-        "2": privilegeExpiredTs, // Publish audio
-        "3": privilegeExpiredTs, // Publish video  
-        "4": privilegeExpiredTs, // Publish data
-      },
+    // Pack messages
+    const messages: Record<number, number> = {
+      1: privilegeExpireTs,  // kJoinChannel
     };
-
-    const content = {
-      appId,
-      channelName,
-      uid: uid.toString(),
-      message,
-    };
-
-    const messageStr = JSON.stringify(content);
     
-    // Sign the message with HMAC-SHA256
-    const signature = await this.hmacSha256(appCertificate, messageStr);
+    if (role === this.Role.PUBLISHER) {
+      messages[2] = privilegeExpireTs;  // kPublishAudioStream
+      messages[3] = privilegeExpireTs;  // kPublishVideoStream
+      messages[4] = privilegeExpireTs;  // kPublishDataStream
+    }
     
-    // Combine message and signature
-    const combined = messageStr + signature;
+    // Build the message
+    const messageBuffer = this.packMessages(messages, salt, ts);
+    
+    // Sign with HMAC-SHA256
+    const signature = await this.hmacSign(appCertificate, messageBuffer);
+    
+    // Pack the final token: version + appId + signature + messageBuffer
+    const content = new Uint8Array(
+      2 + 32 + signature.length + messageBuffer.length
+    );
+    
+    let offset = 0;
+    
+    // Version (2 bytes)
+    content[offset++] = this.VERSION.charCodeAt(0);
+    content[offset++] = this.VERSION.charCodeAt(1);
+    content[offset++] = this.VERSION.charCodeAt(2);
+    
+    // App ID (32 bytes hex string)
+    const appIdBytes = new TextEncoder().encode(appId);
+    content.set(appIdBytes.slice(0, 32), offset);
+    offset += 32;
+    
+    // Signature
+    content.set(signature, offset);
+    offset += signature.length;
+    
+    // Message buffer
+    content.set(messageBuffer, offset);
     
     // Base64 encode
-    const encoded = btoa(combined);
-    
-    return `${this.VERSION}${encoded}`;
+    return this.base64Encode(content);
   }
 
-  static async hmacSha256(key: string, data: string): Promise<string> {
+  static packMessages(messages: Record<number, number>, salt: number, ts: number): Uint8Array {
+    // Simple packing: salt(4) + ts(4) + messages
+    const buffer = new ArrayBuffer(8 + Object.keys(messages).length * 8);
+    const view = new DataView(buffer);
+    
+    let offset = 0;
+    view.setUint32(offset, salt, false);
+    offset += 4;
+    view.setUint32(offset, ts, false);
+    offset += 4;
+    
+    // Pack messages
+    for (const [key, value] of Object.entries(messages)) {
+      view.setUint32(offset, parseInt(key), false);
+      offset += 4;
+      view.setUint32(offset, value, false);
+      offset += 4;
+    }
+    
+    return new Uint8Array(buffer);
+  }
+
+  static async hmacSign(key: string, data: Uint8Array): Promise<Uint8Array> {
     const encoder = new TextEncoder();
     const keyData = encoder.encode(key);
-    const messageData = encoder.encode(data);
-
+    
     const cryptoKey = await crypto.subtle.importKey(
       "raw",
       keyData,
@@ -65,13 +104,17 @@ class AgoraTokenBuilder {
       false,
       ["sign"]
     );
-
-    const signature = await crypto.subtle.sign("HMAC", cryptoKey, messageData);
     
-    // Convert to hex string
-    return Array.from(new Uint8Array(signature))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
+    // Create a new Uint8Array with proper ArrayBuffer type
+    const dataBuffer = new Uint8Array(data).buffer;
+    const signature = await crypto.subtle.sign("HMAC", cryptoKey, dataBuffer);
+    return new Uint8Array(signature);
+  }
+
+  static base64Encode(data: Uint8Array): string {
+    const base64 = btoa(String.fromCharCode(...data));
+    // URL-safe base64
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
 }
 
@@ -87,7 +130,7 @@ serve(async (req) => {
     const appCertificate = Deno.env.get("AGORA_APP_CERTIFICATE");
     
     if (!appId || !appCertificate) {
-      throw new Error('Missing Agora credentials');
+      throw new Error('Missing Agora credentials in environment');
     }
 
     console.log(`[agora-token] Generating token for channel: ${channelName}, uid: ${uid || 0}`);
@@ -96,21 +139,22 @@ serve(async (req) => {
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
     
-    const token = await AgoraTokenBuilder.buildTokenWithUid(
+    const token = await AgoraAccessToken.buildTokenWithUid(
       appId,
       appCertificate,
       channelName,
       uid || 0,
+      AgoraAccessToken.Role.PUBLISHER,
       privilegeExpiredTs
     );
 
-    console.log(`[agora-token] Token generated successfully`);
+    console.log(`[agora-token] Token generated successfully for channel: ${channelName}`);
     
     return new Response(JSON.stringify({ token, appId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('[agora-token] Error:', error);
+    console.error('[agora-token] Error generating token:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(JSON.stringify({ error: errorMessage }), {
       status: 500,
