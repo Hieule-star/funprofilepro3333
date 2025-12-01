@@ -4,8 +4,9 @@ import GameCard from "@/components/game/GameCard";
 import Leaderboard from "@/components/game/Leaderboard";
 import UserStats from "@/components/game/UserStats";
 import GameModal from "@/components/game/GameModal";
-import { Gamepad2, Trophy, BarChart3 } from "lucide-react";
+import { Gamepad2, Trophy, BarChart3, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 const kidsGames = [
   {
@@ -156,7 +157,34 @@ const seniorGames = [
   },
 ];
 
-const allGames = [...kidsGames, ...teenGames, ...seniorGames];
+const multiplayerGames = [
+  {
+    id: "multiplayer-gomoku",
+    name: "Cờ Caro Online",
+    icon: "⭕",
+    difficulty: 3,
+    description: "Đấu Cờ Caro với bạn bè hoặc người chơi khác",
+    isMultiplayer: true,
+  },
+  {
+    id: "multiplayer-tictactoe",
+    name: "Tic-Tac-Toe Online",
+    icon: "🎯",
+    difficulty: 1,
+    description: "Cờ ca-rô 3x3 đối kháng trực tuyến",
+    isMultiplayer: true,
+  },
+  {
+    id: "multiplayer-memory",
+    name: "Memory Đua Điểm",
+    icon: "🃏",
+    difficulty: 2,
+    description: "Thi đấu lật thẻ ghép đôi với đối thủ",
+    isMultiplayer: true,
+  },
+];
+
+const allGames = [...kidsGames, ...teenGames, ...seniorGames, ...multiplayerGames];
 
 export default function Game() {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
@@ -187,6 +215,26 @@ export default function Game() {
 
           <TabsContent value="games" className="space-y-6">
             <FeaturedGame game={allGames[0]} onPlay={() => setSelectedGame(allGames[0].id)} />
+
+            {/* Multiplayer Section */}
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <h2 className="text-2xl font-bold">🌐 Chơi Online</h2>
+                <Badge variant="secondary" className="bg-green-500/20 text-green-600">
+                  <Users className="w-3 h-3 mr-1" />
+                  Multiplayer
+                </Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {multiplayerGames.map((game) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    onPlay={() => setSelectedGame(game.id)}
+                  />
+                ))}
+              </div>
+            </div>
 
             <div>
               <h2 className="text-2xl font-bold mb-4">🧒 Dành cho Thiếu Nhi</h2>
