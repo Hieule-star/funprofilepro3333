@@ -7,6 +7,7 @@ import MessageList from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
 import VideoCallModal from "@/components/chat/VideoCallModal";
 import DeviceSelectionModal from "@/components/chat/DeviceSelectionModal";
+import OutgoingCallModal from "@/components/chat/OutgoingCallModal";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -297,6 +298,26 @@ export default function Chat() {
           onOpenChange={setDeviceSelectionOpen}
           onConfirm={handleDeviceConfirm}
           targetUsername={pendingCallTarget.username}
+        />
+      )}
+
+      {isCaller && pendingCallTarget && !callAccepted && !callRejected && (
+        <OutgoingCallModal
+          open={true}
+          callerName={profile?.username || "Bạn"}
+          callerAvatar={profile?.avatar_url}
+          targetName={pendingCallTarget.username}
+          targetAvatar={selectedConversation?.participants.find(
+            p => p.user_id !== user?.id
+          )?.profiles?.avatar_url}
+          onCancel={() => {
+            setIsCaller(false);
+            setPendingCallTarget(null);
+            toast({
+              title: "Đã hủy cuộc gọi",
+              description: "Bạn đã hủy cuộc gọi"
+            });
+          }}
         />
       )}
 

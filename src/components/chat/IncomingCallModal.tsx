@@ -31,27 +31,33 @@ export default function IncomingCallModal({
 
           <div className="text-center">
             <h3 className="text-xl font-semibold mb-2">{callerName}</h3>
-            <p className="text-muted-foreground">đang gọi cho bạn...</p>
+            <p className="text-muted-foreground">đang gọi</p>
           </div>
 
-          <div className="flex gap-4">
-            <Button
-              variant="destructive"
-              size="lg"
-              className="rounded-full h-16 w-16"
-              onClick={onReject}
-            >
-              <PhoneOff className="h-6 w-6" />
-            </Button>
+          <div className="flex gap-6">
+            <div className="flex flex-col items-center gap-2">
+              <Button
+                variant="destructive"
+                size="lg"
+                className="rounded-full h-16 w-16"
+                onClick={onReject}
+              >
+                <PhoneOff className="h-6 w-6" />
+              </Button>
+              <span className="text-sm text-muted-foreground">Từ chối</span>
+            </div>
 
-            <Button
-              variant="default"
-              size="lg"
-              className="rounded-full h-16 w-16 bg-green-600 hover:bg-green-700"
-              onClick={onAccept}
-            >
-              <Phone className="h-6 w-6" />
-            </Button>
+            <div className="flex flex-col items-center gap-2">
+              <Button
+                variant="default"
+                size="lg"
+                className="rounded-full h-16 w-16 bg-green-600 hover:bg-green-700"
+                onClick={onAccept}
+              >
+                <Phone className="h-6 w-6" />
+              </Button>
+              <span className="text-sm text-muted-foreground">Chấp nhận</span>
+            </div>
           </div>
         </div>
       </DialogContent>
