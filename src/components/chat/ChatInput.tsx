@@ -52,11 +52,11 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
+    // Check file size (max 4000MB)
+    if (file.size > 4000 * 1024 * 1024) {
       toast({
         title: "File quá lớn",
-        description: "Vui lòng chọn file nhỏ hơn 10MB",
+        description: "Vui lòng chọn file nhỏ hơn 4000MB (4GB)",
         variant: "destructive"
       });
       return;
