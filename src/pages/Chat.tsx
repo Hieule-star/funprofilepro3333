@@ -1,17 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCall } from "@/contexts/CallContext";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import ChatHeader from "@/components/chat/ChatHeader";
 import MessageList from "@/components/chat/MessageList";
 import ChatInput from "@/components/chat/ChatInput";
 import VideoCallModal from "@/components/chat/VideoCallModal";
-import IncomingCallModal from "@/components/chat/IncomingCallModal";
 import DeviceSelectionModal from "@/components/chat/DeviceSelectionModal";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
-import { useCallSignaling } from "@/hooks/useCallSignaling";
 
 export default function Chat() {
   const { user, profile } = useAuth();
@@ -37,14 +36,12 @@ export default function Chat() {
     user?.id
   );
 
+  // Use global call context instead of direct hook
   const {
     initiateCall,
-    acceptCall,
-    rejectCall,
-    incomingCall,
     callAccepted,
     callRejected
-  } = useCallSignaling(user?.id);
+  } = useCall();
 
   useEffect(() => {
     if (!selectedConversation) return;
@@ -151,12 +148,12 @@ export default function Chat() {
     }
   };
 
-  // Handle call acceptance
+  // Handle call acceptance - open video modal for both caller and callee
   useEffect(() => {
-    if (callAccepted && isCaller) {
+    if (callAccepted) {
       setVideoCallOpen(true);
     }
-  }, [callAccepted, isCaller]);
+  }, [callAccepted]);
 
   // Handle call rejection
   useEffect(() => {
@@ -244,22 +241,6 @@ export default function Chat() {
     handleVideoCall(); // Same logic for now
   };
 
-  const handleAcceptCall = () => {
-    if (incomingCall) {
-      acceptCall(incomingCall.callerId);
-      setIsCaller(false);
-      setVideoCallOpen(true);
-    }
-  };
-
-  const handleRejectCall = () => {
-    if (incomingCall) {
-      rejectCall(incomingCall.callerId);
-      toast({
-        title: "Đã từ chối cuộc gọi",
-      });
-    }
-  };
 
   const handleTyping = (isTyping: boolean) => {
     if (profile) {
@@ -336,16 +317,6 @@ export default function Chat() {
           isCaller={isCaller}
           callAccepted={!!callAccepted}
           selectedDevices={selectedDevices}
-        />
-      )}
-
-      {incomingCall && (
-        <IncomingCallModal
-          open={true}
-          callerName={incomingCall.callerName}
-          callerAvatar={incomingCall.callerAvatar}
-          onAccept={handleAcceptCall}
-          onReject={handleRejectCall}
         />
       )}
     </div>
