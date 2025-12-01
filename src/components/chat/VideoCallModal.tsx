@@ -3,6 +3,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2 } from "lucide-react";
 import { WebRTCManager } from "@/utils/WebRTCManager";
+import { useWebRTCSignaling } from "@/hooks/useWebRTCSignaling";
 
 interface VideoCallModalProps {
   open: boolean;
@@ -40,6 +41,14 @@ export default function VideoCallModal({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const webrtcManagerRef = useRef<WebRTCManager | null>(null);
+
+  // WebRTC signaling via Supabase Realtime
+  const signaling = useWebRTCSignaling(
+    currentUserId,
+    targetUserId,
+    conversationId,
+    open
+  );
 
   // Cleanup only on unmount
   useEffect(() => {
@@ -105,6 +114,60 @@ export default function VideoCallModal({
           );
 
           webrtcManagerRef.current = manager;
+          
+          // Connect signaling to manager
+          manager.setSignalingCallbacks({
+            onOffer: async (offer) => {
+              // This will be called by signaling when offer arrives
+            },
+            onAnswer: async (answer) => {
+              // This will be called by signaling when answer arrives
+            },
+            onIceCandidate: async (candidate) => {
+              // This will be called by signaling when ICE candidate arrives
+            },
+            onReady: async () => {
+              // This will be called by signaling when peer is ready
+            },
+            sendOffer: signaling.sendOffer,
+            sendAnswer: signaling.sendAnswer,
+            sendIceCandidate: signaling.sendIceCandidate,
+            sendReady: signaling.sendReady
+          });
+
+          // Set up signaling event handlers to call manager methods
+          signaling.onOffer = (offer) => {
+            console.log('=== Received offer via signaling ===');
+            // Call private method through the callbacks
+            const callbacks = manager['signalingCallbacks'];
+            if (callbacks) {
+              callbacks.onOffer(offer);
+            }
+          };
+
+          signaling.onAnswer = (answer) => {
+            console.log('=== Received answer via signaling ===');
+            const callbacks = manager['signalingCallbacks'];
+            if (callbacks) {
+              callbacks.onAnswer(answer);
+            }
+          };
+
+          signaling.onIceCandidate = (candidate) => {
+            console.log('=== Received ICE candidate via signaling ===');
+            const callbacks = manager['signalingCallbacks'];
+            if (callbacks) {
+              callbacks.onIceCandidate(candidate);
+            }
+          };
+
+          signaling.onReady = () => {
+            console.log('=== Received ready signal via signaling ===');
+            const callbacks = manager['signalingCallbacks'];
+            if (callbacks) {
+              callbacks.onReady();
+            }
+          };
           
           console.log('=== Calling manager.initialize() ===');
           await manager.initialize(isCaller);
