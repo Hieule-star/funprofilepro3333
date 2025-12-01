@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2 } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, User } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAgoraCall } from "@/hooks/useAgoraCall";
 
 interface AgoraVideoCallModalProps {
@@ -9,6 +10,7 @@ interface AgoraVideoCallModalProps {
   onOpenChange: (open: boolean) => void;
   conversationId: string;
   targetUsername: string;
+  mode: 'video' | 'audio';
   selectedVideoDeviceId?: string;
   selectedAudioDeviceId?: string;
 }
@@ -18,6 +20,7 @@ export default function AgoraVideoCallModal({
   onOpenChange,
   conversationId,
   targetUsername,
+  mode,
   selectedVideoDeviceId,
   selectedAudioDeviceId,
 }: AgoraVideoCallModalProps) {
@@ -42,7 +45,7 @@ export default function AgoraVideoCallModal({
       const channelName = `call-${conversationId}`;
       setCallStatus('connecting');
       
-      joinChannel(channelName, selectedVideoDeviceId, selectedAudioDeviceId)
+      joinChannel(channelName, mode, selectedVideoDeviceId, selectedAudioDeviceId)
         .then(() => {
           console.log('[AgoraModal] Joined successfully');
         })
@@ -57,7 +60,7 @@ export default function AgoraVideoCallModal({
         leaveChannel();
       }
     };
-  }, [open, conversationId, selectedVideoDeviceId, selectedAudioDeviceId]);
+  }, [open, conversationId, mode, selectedVideoDeviceId, selectedAudioDeviceId]);
 
   // Update status when remote user joins
   useEffect(() => {
@@ -87,20 +90,40 @@ export default function AgoraVideoCallModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden">
-        <div className="relative w-full h-full bg-gray-900">
-          {/* Remote video */}
-          <div 
-            ref={remoteVideoRef} 
-            className="w-full h-full bg-gray-800"
-          />
+        <div className="relative w-full h-full bg-gradient-to-br from-gray-900 to-gray-800">
+          {mode === 'video' ? (
+            <>
+              {/* Remote video */}
+              <div 
+                ref={remoteVideoRef} 
+                className="w-full h-full bg-gray-800"
+              />
 
-          {/* Local video - Picture in Picture */}
-          <div className="absolute top-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden border-2 border-white/20">
-            <div 
-              ref={localVideoRef} 
-              className="w-full h-full"
-            />
-          </div>
+              {/* Local video - Picture in Picture */}
+              <div className="absolute top-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden border-2 border-white/20">
+                <div 
+                  ref={localVideoRef} 
+                  className="w-full h-full"
+                />
+              </div>
+            </>
+          ) : (
+            /* Audio-only mode - Show avatar */
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="text-center space-y-6">
+                <Avatar className="h-32 w-32 mx-auto border-4 border-primary/20">
+                  <AvatarImage src="" />
+                  <AvatarFallback className="bg-primary/10 text-primary text-4xl">
+                    <User className="h-16 w-16" />
+                  </AvatarFallback>
+                </Avatar>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-semibold text-white">{targetUsername}</h3>
+                  <p className="text-muted-foreground">Cuộc gọi thoại</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Status indicator */}
           <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
@@ -147,14 +170,16 @@ export default function AgoraVideoCallModal({
               {audioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
             </Button>
 
-            <Button
-              variant={videoEnabled ? "secondary" : "destructive"}
-              size="icon"
-              className="h-14 w-14 rounded-full"
-              onClick={handleToggleVideo}
-            >
-              {videoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
-            </Button>
+            {mode === 'video' && (
+              <Button
+                variant={videoEnabled ? "secondary" : "destructive"}
+                size="icon"
+                className="h-14 w-14 rounded-full"
+                onClick={handleToggleVideo}
+              >
+                {videoEnabled ? <Video className="h-6 w-6" /> : <VideoOff className="h-6 w-6" />}
+              </Button>
+            )}
 
             <Button
               variant="destructive"

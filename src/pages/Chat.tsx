@@ -21,6 +21,7 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [videoCallOpen, setVideoCallOpen] = useState(false);
   const [deviceSelectionOpen, setDeviceSelectionOpen] = useState(false);
+  const [callMode, setCallMode] = useState<'video' | 'audio'>('video');
   const [selectedDevices, setSelectedDevices] = useState<{
     videoDeviceId: string;
     audioDeviceId: string;
@@ -202,6 +203,8 @@ export default function Chat() {
   const handleVideoCall = () => {
     if (!selectedConversation || !profile || !user) return;
     
+    setCallMode('video');
+    
     // Find the OTHER participant (not the current user)
     const targetUser = selectedConversation.participants.find(
       (p: any) => p.user_id !== user.id
@@ -224,6 +227,36 @@ export default function Chat() {
     });
     
     // Open device selection modal
+    setDeviceSelectionOpen(true);
+  };
+
+  const handleVoiceCall = () => {
+    if (!selectedConversation || !profile || !user) return;
+    
+    setCallMode('audio');
+    
+    // Find the OTHER participant (not the current user)
+    const targetUser = selectedConversation.participants.find(
+      (p: any) => p.user_id !== user.id
+    );
+    
+    if (!targetUser) {
+      toast({
+        title: "Lỗi",
+        description: "Không tìm thấy người dùng để gọi",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Store call target info
+    setPendingCallTarget({
+      userId: targetUser.user_id,
+      conversationId: selectedConversation.id,
+      username: targetUser.profiles?.username || "người dùng"
+    });
+    
+    // Open device selection modal (only audio device needed for voice calls)
     setDeviceSelectionOpen(true);
   };
 
@@ -260,10 +293,6 @@ export default function Chat() {
       title: "Đang gọi...",
       description: `Đang chờ ${pendingCallTarget.username} phản hồi...`,
     });
-  };
-
-  const handleVoiceCall = () => {
-    handleVideoCall(); // Same logic for now
   };
 
 
@@ -366,6 +395,7 @@ export default function Chat() {
               ? selectedConversation?.participants.find((p: any) => p.user_id !== user?.id)?.profiles?.username || ""
               : "Người gọi"
           }
+          mode={callMode}
           selectedVideoDeviceId={selectedDevices?.videoDeviceId}
           selectedAudioDeviceId={selectedDevices?.audioDeviceId}
         />

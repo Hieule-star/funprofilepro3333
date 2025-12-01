@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface UseAgoraCallReturn {
   localVideoRef: React.RefObject<HTMLDivElement>;
   remoteVideoRef: React.RefObject<HTMLDivElement>;
-  joinChannel: (channelName: string, videoDeviceId?: string, audioDeviceId?: string) => Promise<void>;
+  joinChannel: (channelName: string, mode: 'video' | 'audio', videoDeviceId?: string, audioDeviceId?: string) => Promise<void>;
   leaveChannel: () => Promise<void>;
   toggleAudio: (enabled: boolean) => void;
   toggleVideo: (enabled: boolean) => void;
@@ -28,9 +28,9 @@ export function useAgoraCall(): UseAgoraCallReturn {
   const localVideoRef = useRef<HTMLDivElement>(null);
   const remoteVideoRef = useRef<HTMLDivElement>(null);
 
-  const joinChannel = useCallback(async (channelName: string, videoDeviceId?: string, audioDeviceId?: string) => {
+  const joinChannel = useCallback(async (channelName: string, mode: 'video' | 'audio', videoDeviceId?: string, audioDeviceId?: string) => {
     try {
-      console.log('[Agora] Joining channel:', channelName);
+      console.log('[Agora] Joining channel:', channelName, 'mode:', mode);
       
       // 1. Get token from Edge Function
       const { data, error } = await supabase.functions.invoke('agora-token', {
@@ -82,33 +82,36 @@ export function useAgoraCall(): UseAgoraCallReturn {
       await client.join(appId, channelName, token, null);
       console.log('[Agora] Joined channel successfully');
 
-      // 5. Create local tracks with device selection
+      // 5. Create local tracks based on mode
       let audioTrack: IMicrophoneAudioTrack;
-      let videoTrack: ICameraVideoTrack;
       
-      if (audioDeviceId || videoDeviceId) {
-        audioTrack = await AgoraRTC.createMicrophoneAudioTrack(
-          audioDeviceId ? { microphoneId: audioDeviceId } : undefined
-        );
-        videoTrack = await AgoraRTC.createCameraVideoTrack(
+      audioTrack = await AgoraRTC.createMicrophoneAudioTrack(
+        audioDeviceId ? { microphoneId: audioDeviceId } : undefined
+      );
+      localAudioTrackRef.current = audioTrack;
+
+      const tracksToPublish: (IMicrophoneAudioTrack | ICameraVideoTrack)[] = [audioTrack];
+
+      // Only create video track if mode is 'video'
+      if (mode === 'video') {
+        const videoTrack = await AgoraRTC.createCameraVideoTrack(
           videoDeviceId ? { cameraId: videoDeviceId } : undefined
         );
-      } else {
-        [audioTrack, videoTrack] = await AgoraRTC.createMicrophoneAndCameraTracks();
-      }
-      
-      localAudioTrackRef.current = audioTrack;
-      localVideoTrackRef.current = videoTrack;
+        localVideoTrackRef.current = videoTrack;
+        tracksToPublish.push(videoTrack);
 
-      // Play local video
-      if (localVideoRef.current) {
-        videoTrack.play(localVideoRef.current);
-        console.log('[Agora] Playing local video');
+        // Play local video
+        if (localVideoRef.current) {
+          videoTrack.play(localVideoRef.current);
+          console.log('[Agora] Playing local video');
+        }
+      } else {
+        console.log('[Agora] Audio-only mode, skipping video track');
       }
 
       // Publish tracks
-      await client.publish([audioTrack, videoTrack]);
-      console.log('[Agora] Published local tracks');
+      await client.publish(tracksToPublish);
+      console.log('[Agora] Published local tracks:', mode);
 
       setIsJoined(true);
     } catch (error) {
