@@ -41,7 +41,9 @@ export default function Chat() {
   const {
     initiateCall,
     callAccepted,
-    callRejected
+    callRejected,
+    activeCallAsCallee,
+    clearActiveCall
   } = useCall();
 
   useEffect(() => {
@@ -149,12 +151,22 @@ export default function Chat() {
     }
   };
 
-  // Handle call acceptance - open video modal for both caller and callee
+  // Handle call acceptance - open video modal for CALLER
   useEffect(() => {
     if (callAccepted) {
+      console.log('[Chat] Caller: callAccepted detected, opening VideoCallModal');
       setVideoCallOpen(true);
     }
   }, [callAccepted]);
+
+  // Handle call acceptance - open video modal for CALLEE
+  useEffect(() => {
+    if (activeCallAsCallee) {
+      console.log('[Chat] Callee: activeCallAsCallee detected, opening VideoCallModal');
+      setVideoCallOpen(true);
+      setIsCaller(false); // Ensure callee knows they're not the caller
+    }
+  }, [activeCallAsCallee]);
 
   // Handle call rejection
   useEffect(() => {
@@ -333,7 +345,7 @@ export default function Chat() {
         />
       )}
 
-      {selectedConversation && videoCallOpen && (
+      {videoCallOpen && (callAccepted || activeCallAsCallee) && (
         <VideoCallModal
           open={videoCallOpen}
           onOpenChange={(open) => {
@@ -341,18 +353,27 @@ export default function Chat() {
             if (!open) {
               setIsCaller(false);
               setSelectedDevices(null);
+              clearActiveCall();
             }
           }}
           currentUserId={user?.id || ""}
-          targetUserId={selectedConversation.participants.find(
-            (p: any) => p.user_id !== user?.id
-          )?.user_id || ""}
-          targetUsername={selectedConversation.participants.find(
-            (p: any) => p.user_id !== user?.id
-          )?.profiles?.username || ""}
-          conversationId={selectedConversation.id}
+          targetUserId={
+            isCaller 
+              ? selectedConversation?.participants.find((p: any) => p.user_id !== user?.id)?.user_id || ""
+              : activeCallAsCallee?.callerId || ""
+          }
+          targetUsername={
+            isCaller
+              ? selectedConversation?.participants.find((p: any) => p.user_id !== user?.id)?.profiles?.username || ""
+              : "Người gọi"
+          }
+          conversationId={
+            isCaller 
+              ? selectedConversation?.id || ""
+              : activeCallAsCallee?.conversationId || ""
+          }
           isCaller={isCaller}
-          callAccepted={!!callAccepted}
+          callAccepted={!!callAccepted || !!activeCallAsCallee}
           selectedDevices={selectedDevices}
         />
       )}
