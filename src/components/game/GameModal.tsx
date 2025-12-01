@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PuzzleSlider from "./PuzzleSlider";
 import MemoryGame from "./MemoryGame";
@@ -19,6 +20,10 @@ import JigsawPuzzle from "./JigsawPuzzle";
 import ProverbQuiz from "./ProverbQuiz";
 import Gomoku from "./Gomoku";
 import NumberSort from "./NumberSort";
+import MultiplayerLobby from "./MultiplayerLobby";
+import MultiplayerGomoku from "./MultiplayerGomoku";
+import MultiplayerTicTacToe from "./MultiplayerTicTacToe";
+import MultiplayerMemory from "./MultiplayerMemory";
 
 interface GameModalProps {
   gameId: string | null;
@@ -26,7 +31,34 @@ interface GameModalProps {
 }
 
 export default function GameModal({ gameId, onClose }: GameModalProps) {
+  const [multiplayerRoomId, setMultiplayerRoomId] = useState<string | null>(null);
+  const [multiplayerType, setMultiplayerType] = useState<string | null>(null);
+
+  const handleJoinRoom = (roomId: string) => {
+    setMultiplayerRoomId(roomId);
+    if (gameId === "multiplayer-gomoku") setMultiplayerType("gomoku");
+    else if (gameId === "multiplayer-tictactoe") setMultiplayerType("tictactoe");
+    else if (gameId === "multiplayer-memory") setMultiplayerType("memory");
+  };
+
+  const handleCloseMultiplayer = () => {
+    setMultiplayerRoomId(null);
+    setMultiplayerType(null);
+    onClose();
+  };
+
   const renderGame = () => {
+    // Multiplayer games
+    if (multiplayerRoomId) {
+      if (multiplayerType === "gomoku") return <MultiplayerGomoku roomId={multiplayerRoomId} onClose={handleCloseMultiplayer} />;
+      if (multiplayerType === "tictactoe") return <MultiplayerTicTacToe roomId={multiplayerRoomId} onClose={handleCloseMultiplayer} />;
+      if (multiplayerType === "memory") return <MultiplayerMemory roomId={multiplayerRoomId} onClose={handleCloseMultiplayer} />;
+    }
+
+    if (gameId === "multiplayer-gomoku") return <MultiplayerLobby gameType="gomoku" gameName="Cờ Caro" onJoinRoom={handleJoinRoom} />;
+    if (gameId === "multiplayer-tictactoe") return <MultiplayerLobby gameType="tictactoe" gameName="Tic-Tac-Toe" onJoinRoom={handleJoinRoom} />;
+    if (gameId === "multiplayer-memory") return <MultiplayerLobby gameType="memory" gameName="Memory Cards" onJoinRoom={handleJoinRoom} />;
+
     switch (gameId) {
       case "puzzle-slider":
         return <PuzzleSlider onClose={onClose} />;
@@ -115,14 +147,20 @@ export default function GameModal({ gameId, onClose }: GameModalProps) {
         return "⭕ Cờ Caro";
       case "number-sort":
         return "🔢 Sắp Xếp Số";
+      case "multiplayer-gomoku":
+        return "🌐 Cờ Caro Online";
+      case "multiplayer-tictactoe":
+        return "🌐 Tic-Tac-Toe Online";
+      case "multiplayer-memory":
+        return "🌐 Memory Đua Điểm";
       default:
         return "Game";
     }
   };
 
   return (
-    <Dialog open={!!gameId} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+    <Dialog open={!!gameId} onOpenChange={handleCloseMultiplayer}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{getGameTitle()}</DialogTitle>
         </DialogHeader>
