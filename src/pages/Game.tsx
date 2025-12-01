@@ -7,7 +7,7 @@ import GameModal from "@/components/game/GameModal";
 import { Gamepad2, Trophy, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const games = [
+const kidsGames = [
   {
     id: "puzzle-slider",
     name: "Puzzle Slider",
@@ -66,6 +66,53 @@ const games = [
   },
 ];
 
+const teenGames = [
+  {
+    id: "speed-typing",
+    name: "Speed Typing",
+    icon: "⌨️",
+    difficulty: 4,
+    description: "Thử thách gõ phím nhanh và chính xác",
+  },
+  {
+    id: "game-2048",
+    name: "2048",
+    icon: "🔲",
+    difficulty: 4,
+    description: "Ghép số tạo 2048 huyền thoại",
+  },
+  {
+    id: "snake-game",
+    name: "Snake Game",
+    icon: "🐍",
+    difficulty: 3,
+    description: "Rắn săn mồi cổ điển, càng ăn càng dài",
+  },
+  {
+    id: "quiz-master",
+    name: "Quiz Master",
+    icon: "🧠",
+    difficulty: 4,
+    description: "Đố vui kiến thức tổng hợp",
+  },
+  {
+    id: "reaction-test",
+    name: "Reaction Test",
+    icon: "⚡",
+    difficulty: 3,
+    description: "Kiểm tra tốc độ phản xạ của bạn",
+  },
+  {
+    id: "simon-says",
+    name: "Simon Says",
+    icon: "🎵",
+    difficulty: 4,
+    description: "Nhớ chuỗi màu sắc ngày càng dài",
+  },
+];
+
+const allGames = [...kidsGames, ...teenGames];
+
 export default function Game() {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
 
@@ -94,12 +141,25 @@ export default function Game() {
           </TabsList>
 
           <TabsContent value="games" className="space-y-6">
-            <FeaturedGame game={games[0]} onPlay={() => setSelectedGame(games[0].id)} />
+            <FeaturedGame game={allGames[0]} onPlay={() => setSelectedGame(allGames[0].id)} />
 
             <div>
-              <h2 className="text-2xl font-bold mb-4">Tất cả các Game</h2>
+              <h2 className="text-2xl font-bold mb-4">🧒 Dành cho Thiếu Nhi</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {games.map((game) => (
+                {kidsGames.map((game) => (
+                  <GameCard
+                    key={game.id}
+                    game={game}
+                    onPlay={() => setSelectedGame(game.id)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h2 className="text-2xl font-bold mb-4">👦 Dành cho Thanh Thiếu Niên</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {teenGames.map((game) => (
                   <GameCard
                     key={game.id}
                     game={game}
