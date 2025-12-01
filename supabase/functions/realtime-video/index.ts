@@ -14,6 +14,7 @@ interface WebSocketMessage {
 }
 
 const connections = new Map<string, WebSocket>();
+const pendingReadySignals = new Map<string, string>(); // targetId -> senderId
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -41,12 +42,26 @@ Deno.serve(async (req) => {
         userId = message.senderId;
         connections.set(userId, socket);
         console.log(`User ${userId} joined. Total connections: ${connections.size}`);
+        
+        // Check if there's a pending ready signal for this user
+        if (pendingReadySignals.has(userId)) {
+          const calleeId = pendingReadySignals.get(userId);
+          console.log(`Found pending ready signal from ${calleeId}, sending peer-ready to ${userId}`);
+          socket.send(JSON.stringify({
+            type: 'peer-ready',
+            senderId: calleeId
+          }));
+          pendingReadySignals.delete(userId);
+        }
+        
         return;
       }
 
       // Handle ready signal from callee
       if (message.type === 'ready' && message.senderId && message.targetId) {
         console.log(`User ${message.senderId} is ready, notifying ${message.targetId}`);
+        
+        // Check if target is online
         if (connections.has(message.targetId)) {
           const targetSocket = connections.get(message.targetId);
           if (targetSocket && targetSocket.readyState === WebSocket.OPEN) {
@@ -55,8 +70,13 @@ Deno.serve(async (req) => {
               senderId: message.senderId
             }));
             console.log(`Sent peer-ready to ${message.targetId}`);
+            return;
           }
         }
+        
+        // Target not online yet, queue the ready signal
+        console.log(`Target ${message.targetId} not online, queuing ready signal from ${message.senderId}`);
+        pendingReadySignals.set(message.targetId, message.senderId);
         return;
       }
 
@@ -76,6 +96,15 @@ Deno.serve(async (req) => {
   socket.onclose = () => {
     if (userId) {
       connections.delete(userId);
+      
+      // Clean up any pending signals FROM this user
+      for (const [targetId, senderId] of pendingReadySignals.entries()) {
+        if (senderId === userId) {
+          pendingReadySignals.delete(targetId);
+          console.log(`Cleaned up pending ready signal from ${userId} to ${targetId}`);
+        }
+      }
+      
       console.log(`User ${userId} disconnected. Total connections: ${connections.size}`);
     }
   };
