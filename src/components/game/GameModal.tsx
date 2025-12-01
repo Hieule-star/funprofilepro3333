@@ -7,6 +7,12 @@ import MathKids from "./MathKids";
 import WordScramble from "./WordScramble";
 import CatchStars from "./CatchStars";
 import AnimalQuiz from "./AnimalQuiz";
+import SpeedTyping from "./SpeedTyping";
+import Game2048 from "./Game2048";
+import SnakeGame from "./SnakeGame";
+import QuizMaster from "./QuizMaster";
+import ReactionTest from "./ReactionTest";
+import SimonSays from "./SimonSays";
 
 interface GameModalProps {
   gameId: string | null;
@@ -32,6 +38,18 @@ export default function GameModal({ gameId, onClose }: GameModalProps) {
         return <CatchStars onClose={onClose} />;
       case "animal-quiz":
         return <AnimalQuiz onClose={onClose} />;
+      case "speed-typing":
+        return <SpeedTyping onClose={onClose} />;
+      case "game-2048":
+        return <Game2048 onClose={onClose} />;
+      case "snake-game":
+        return <SnakeGame onClose={onClose} />;
+      case "quiz-master":
+        return <QuizMaster onClose={onClose} />;
+      case "reaction-test":
+        return <ReactionTest onClose={onClose} />;
+      case "simon-says":
+        return <SimonSays onClose={onClose} />;
       default:
         return null;
     }
@@ -55,6 +73,18 @@ export default function GameModal({ gameId, onClose }: GameModalProps) {
         return "⭐ Catch Stars";
       case "animal-quiz":
         return "🦁 Animal Quiz";
+      case "speed-typing":
+        return "⌨️ Speed Typing";
+      case "game-2048":
+        return "🔲 2048";
+      case "snake-game":
+        return "🐍 Snake Game";
+      case "quiz-master":
+        return "🧠 Quiz Master";
+      case "reaction-test":
+        return "⚡ Reaction Test";
+      case "simon-says":
+        return "🎵 Simon Says";
       default:
         return "Game";
     }
