@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Smile, Paperclip, X, Image as ImageIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Send, Smile, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -14,6 +15,8 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
   const { toast } = useToast();
   const [message, setMessage] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +66,57 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
     }
 
     setSelectedFile(file);
+    
+    // Create preview URL for images and videos
+    if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    }
+    
+    setShowPreview(true);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCancelPreview = () => {
+    setShowPreview(false);
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
+  };
+
+  const handleConfirmSend = async () => {
+    if (!selectedFile) return;
+    
+    setShowPreview(false);
+    
+    const result = await uploadFile(selectedFile);
+    if (result) {
+      onSendMessage(message.trim(), result.url, result.type);
+      setMessage("");
+      
+      // Stop typing indicator
+      if (onTyping) {
+        onTyping(false);
+      }
+      
+      // Clear timeout
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    }
+    
+    // Cleanup
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
   };
 
   const uploadFile = async (file: File): Promise<{ url: string; type: string } | null> => {
@@ -116,25 +170,10 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() && !selectedFile) return;
+    if (!message.trim()) return;
 
-    let mediaUrl: string | undefined;
-    let mediaType: string | undefined;
-
-    // Upload file if selected
-    if (selectedFile) {
-      const result = await uploadFile(selectedFile);
-      if (result) {
-        mediaUrl = result.url;
-        mediaType = result.type;
-      } else {
-        return; // Upload failed, don't send message
-      }
-    }
-
-    onSendMessage(message.trim(), mediaUrl, mediaType);
+    onSendMessage(message.trim());
     setMessage("");
-    setSelectedFile(null);
     
     // Stop typing indicator
     if (onTyping) {
@@ -148,33 +187,85 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="border-t border-border bg-card p-4"
-    >
-      {selectedFile && (
-        <div className="mb-2 p-3 bg-muted rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {selectedFile.type.startsWith("image/") ? (
-              <ImageIcon className="h-5 w-5 text-muted-foreground" />
-            ) : (
-              <Paperclip className="h-5 w-5 text-muted-foreground" />
+    <>
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Xem trước file</DialogTitle>
+          </DialogHeader>
+          
+          <div className="max-h-[60vh] overflow-auto flex items-center justify-center bg-muted rounded-lg p-4">
+            {selectedFile && (
+              <>
+                {selectedFile.type.startsWith("image/") && previewUrl && (
+                  <img 
+                    src={previewUrl} 
+                    alt="Preview" 
+                    className="max-w-full max-h-[50vh] object-contain rounded"
+                  />
+                )}
+                
+                {selectedFile.type.startsWith("video/") && previewUrl && (
+                  <video 
+                    src={previewUrl} 
+                    controls 
+                    className="max-w-full max-h-[50vh] rounded"
+                  />
+                )}
+                
+                {!selectedFile.type.startsWith("image/") && !selectedFile.type.startsWith("video/") && (
+                  <div className="flex flex-col items-center gap-4 p-8">
+                    <FileText className="h-20 w-20 text-muted-foreground" />
+                    <div className="text-center">
+                      <p className="font-medium text-lg">{selectedFile.name}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {selectedFile.type || "Không xác định"}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-            <span className="text-sm truncate max-w-[200px]">{selectedFile.name}</span>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setSelectedFile(null)}
-            className="h-6 w-6"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
+          
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelPreview}
+              disabled={uploading}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmSend}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <div className="h-4 w-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Đang gửi...
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4 mr-2" />
+                  Gửi
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <div className="flex items-center gap-2">
+      <form
+        onSubmit={handleSubmit}
+        className="border-t border-border bg-card p-4"
+      >
+        <div className="flex items-center gap-2">
         <input
           ref={fileInputRef}
           type="file"
@@ -208,15 +299,12 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
         <Button 
           type="submit" 
           size="icon" 
-          disabled={uploading || (!message.trim() && !selectedFile)}
+          disabled={uploading || !message.trim()}
         >
-          {uploading ? (
-            <div className="h-5 w-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Send className="h-5 w-5" />
-          )}
+          <Send className="h-5 w-5" />
         </Button>
       </div>
-    </form>
+      </form>
+    </>
   );
 }
