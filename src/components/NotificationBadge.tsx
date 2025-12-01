@@ -24,6 +24,22 @@ interface Notification {
   link: string | null;
 }
 
+const getNotificationIcon = (type: string, title: string) => {
+  if (type === 'reward') {
+    if (title.includes('đăng bài')) return '📝';
+    if (title.includes('bình luận')) return '💬';
+    if (title.includes('tương tác')) return '❤️';
+    if (title.includes('kết bạn')) return '👥';
+    if (title.includes('game')) return '🎮';
+    if (title.includes('điểm danh')) return '📅';
+    if (title.includes('Chào mừng')) return '🎉';
+    return '🎁';
+  }
+  if (type === 'comment') return '💬';
+  if (type === 'mention') return '@';
+  return '🔔';
+};
+
 export default function NotificationBadge() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -128,7 +144,10 @@ export default function NotificationBadge() {
                 onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex-1">
-                  <p className="text-sm font-medium">{notification.title}</p>
+                  <p className="text-sm font-medium">
+                    <span className="mr-1">{getNotificationIcon(notification.type, notification.title)}</span>
+                    {notification.title}
+                  </p>
                   <p className="text-xs text-muted-foreground">{notification.message}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {formatDistanceToNow(new Date(notification.created_at), {
