@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Medal, Award, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 interface LeaderboardEntry {
   user_id: string;
@@ -16,6 +17,7 @@ interface LeaderboardEntry {
 type TimeFilter = "all" | "month" | "week";
 
 export default function Leaderboard() {
+  const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
@@ -175,8 +177,9 @@ export default function Leaderboard() {
               {leaderboard.map((entry, index) => (
                 <div
                   key={entry.user_id}
+                  onClick={() => navigate(`/user/${entry.user_id}`)}
                   className={`
-                    flex items-center gap-4 p-4 rounded-xl transition-all
+                    flex items-center gap-4 p-4 rounded-xl transition-all cursor-pointer
                     ${index < 3 
                       ? 'bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 border-2 border-primary/30 shadow-lg hover:shadow-xl' 
                       : 'bg-muted hover:bg-muted/80 border border-border'

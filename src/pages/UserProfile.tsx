@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Award, Loader2, UserPlus, UserCheck, MessageCircle, Clock } from "lucide-react";
+import { TrendingUp, Award, Loader2, UserPlus, UserCheck, MessageCircle, Clock, FileText, MessageSquare, Heart, Users, Gamepad2, Calendar } from "lucide-react";
 import Post from "@/components/Post";
 import HonorBoard from "@/components/HonorBoard";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +42,14 @@ interface UserProfile {
   bio: string | null;
 }
 
+interface RewardTransaction {
+  id: string;
+  reward_type: string;
+  description: string | null;
+  amount: number;
+  created_at: string;
+}
+
 type FriendshipStatus = "none" | "pending_sent" | "pending_received" | "accepted";
 
 export default function UserProfile() {
@@ -59,6 +67,7 @@ export default function UserProfile() {
   const [friendshipStatus, setFriendshipStatus] = useState<FriendshipStatus>("none");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [rewardTransactions, setRewardTransactions] = useState<RewardTransaction[]>([]);
 
   useEffect(() => {
     // Redirect to own profile if viewing own user ID
@@ -70,6 +79,7 @@ export default function UserProfile() {
     if (userId) {
       fetchUserProfile();
       fetchFriendshipStatus();
+      fetchRewardTransactions();
     }
   }, [userId, user]);
 
@@ -170,6 +180,56 @@ export default function UserProfile() {
     } else {
       setFriendshipStatus("none");
     }
+  };
+
+  const fetchRewardTransactions = async () => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("reward_transactions")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setRewardTransactions(data || []);
+    } catch (error) {
+      console.error("Error fetching reward transactions:", error);
+    }
+  };
+
+  const getRewardIcon = (type: string) => {
+    switch (type) {
+      case "registration":
+        return <UserPlus className="h-5 w-5 text-blue-500" />;
+      case "post":
+        return <FileText className="h-5 w-5 text-green-500" />;
+      case "comment":
+        return <MessageSquare className="h-5 w-5 text-cyan-500" />;
+      case "like":
+        return <Heart className="h-5 w-5 text-red-500" />;
+      case "friend":
+        return <Users className="h-5 w-5 text-purple-500" />;
+      case "game":
+        return <Gamepad2 className="h-5 w-5 text-orange-500" />;
+      case "daily_checkin":
+        return <Calendar className="h-5 w-5 text-yellow-500" />;
+      default:
+        return <Award className="h-5 w-5 text-primary" />;
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const handleSendFriendRequest = async () => {
@@ -518,11 +578,34 @@ export default function UserProfile() {
               )}
             </TabsContent>
             <TabsContent value="activity" className="mt-6">
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground">Chưa có hoạt động nào</p>
-                </CardContent>
-              </Card>
+              {rewardTransactions.length > 0 ? (
+                <div className="space-y-3">
+                  {rewardTransactions.map((tx) => (
+                    <Card key={tx.id} className="p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {getRewardIcon(tx.reward_type)}
+                          <div className="flex-1">
+                            <p className="font-medium">{tx.description || "Hoạt động"}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(tx.created_at)}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-lg font-bold text-primary whitespace-nowrap ml-4">
+                          +{tx.amount.toLocaleString("en-US")} CAMLY
+                        </span>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <Card>
+                  <CardContent className="py-12 text-center">
+                    <p className="text-muted-foreground">Chưa có hoạt động nào</p>
+                  </CardContent>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
         </div>
