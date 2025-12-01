@@ -2,172 +2,95 @@ import { useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { RealtimeChannel } from "@supabase/supabase-js";
 
-interface WebRTCSignal {
-  type: 'webrtc-offer' | 'webrtc-answer' | 'webrtc-ice-candidate' | 'webrtc-ready';
+export interface SignalPayload {
+  type: 'webrtc-ready' | 'webrtc-offer' | 'webrtc-answer' | 'webrtc-ice-candidate';
   senderId: string;
-  targetId: string;
   data?: any;
 }
 
-interface WebRTCSignalingHook {
-  sendOffer: (offer: RTCSessionDescriptionInit) => void;
-  sendAnswer: (answer: RTCSessionDescriptionInit) => void;
-  sendIceCandidate: (candidate: RTCIceCandidateInit) => void;
-  sendReady: () => void;
-  onOffer?: (offer: RTCSessionDescriptionInit) => void;
-  onAnswer?: (answer: RTCSessionDescriptionInit) => void;
-  onIceCandidate?: (candidate: RTCIceCandidateInit) => void;
-  onReady?: () => void;
+interface UseWebRTCSignalingReturn {
+  sendSignal: (payload: SignalPayload) => void;
+  isConnected: boolean;
 }
 
 export function useWebRTCSignaling(
-  currentUserId: string,
-  targetUserId: string,
-  conversationId: string,
-  enabled: boolean = true
-): WebRTCSignalingHook {
+  roomId: string | undefined,
+  currentUserId: string | undefined,
+  onSignal: (payload: SignalPayload) => void
+): UseWebRTCSignalingReturn {
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const onOfferRef = useRef<((offer: RTCSessionDescriptionInit) => void) | undefined>();
-  const onAnswerRef = useRef<((answer: RTCSessionDescriptionInit) => void) | undefined>();
-  const onIceCandidateRef = useRef<((candidate: RTCIceCandidateInit) => void) | undefined>();
-  const onReadyRef = useRef<(() => void) | undefined>();
+  const isConnectedRef = useRef(false);
+  const onSignalRef = useRef(onSignal);
 
+  // Keep callback ref updated
   useEffect(() => {
-    if (!enabled || !currentUserId) return;
+    onSignalRef.current = onSignal;
+  }, [onSignal]);
 
-    const channelName = `webrtc-signaling-${currentUserId}`;
-    console.log(`=== Subscribing to WebRTC signaling channel: ${channelName} ===`);
+  // Subscribe to shared room channel
+  useEffect(() => {
+    if (!roomId || !currentUserId) return;
+
+    const channelName = `webrtc:room-${roomId}`;
+    console.log(`[WebRTC] Subscribing to channel: ${channelName}`);
     
-    const channel = supabase.channel(channelName);
+    const channel = supabase.channel(channelName, {
+      config: {
+        broadcast: { self: false } // Don't receive own messages
+      }
+    });
 
     channel
-      .on('broadcast', { event: 'webrtc-signal' }, (payload: any) => {
-        const signal = payload.payload as WebRTCSignal;
+      .on('broadcast', { event: 'signal' }, (message) => {
+        const payload = message.payload as SignalPayload;
         
-        // Only process signals meant for this user
-        if (signal.targetId !== currentUserId) return;
-        
-        console.log(`=== Received WebRTC signal: ${signal.type} from ${signal.senderId} ===`);
-
-        switch (signal.type) {
-          case 'webrtc-offer':
-            onOfferRef.current?.(signal.data);
-            break;
-          case 'webrtc-answer':
-            onAnswerRef.current?.(signal.data);
-            break;
-          case 'webrtc-ice-candidate':
-            onIceCandidateRef.current?.(signal.data);
-            break;
-          case 'webrtc-ready':
-            onReadyRef.current?.();
-            break;
+        // Only process signals from OTHER users
+        if (payload.senderId === currentUserId) {
+          console.log('[WebRTC] Ignoring own signal');
+          return;
         }
+        
+        console.log(`[WebRTC] Received signal: ${payload.type} from ${payload.senderId}`);
+        onSignalRef.current(payload);
       })
       .subscribe((status) => {
-        console.log(`=== WebRTC signaling channel status: ${status} ===`);
+        console.log(`[WebRTC] Channel status: ${status}`);
+        isConnectedRef.current = status === 'SUBSCRIBED';
       });
 
     channelRef.current = channel;
 
     return () => {
-      console.log('=== Cleaning up WebRTC signaling channel ===');
+      console.log('[WebRTC] Cleaning up channel');
       channel.unsubscribe();
       channelRef.current = null;
+      isConnectedRef.current = false;
     };
-  }, [currentUserId, enabled]);
+  }, [roomId, currentUserId]);
 
-  const sendSignal = useCallback(async (signal: WebRTCSignal) => {
-    const targetChannelName = `webrtc-signaling-${signal.targetId}`;
-    console.log(`=== Sending ${signal.type} to ${targetChannelName} ===`);
+  // Send signal to the shared channel
+  const sendSignal = useCallback((payload: SignalPayload) => {
+    if (!channelRef.current) {
+      console.error('[WebRTC] Cannot send signal - channel not connected');
+      return;
+    }
+
+    const fullPayload: SignalPayload = {
+      ...payload,
+      senderId: currentUserId || ''
+    };
+
+    console.log(`[WebRTC] Sending signal: ${payload.type}`);
     
-    const targetChannel = supabase.channel(targetChannelName);
-    
-    return new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        targetChannel.unsubscribe();
-        reject(new Error('Signal send timeout'));
-      }, 5000);
-
-      targetChannel
-        .on('broadcast', { event: 'webrtc-signal' }, () => {})
-        .subscribe(async (status) => {
-          if (status === 'SUBSCRIBED') {
-            try {
-              await targetChannel.send({
-                type: 'broadcast',
-                event: 'webrtc-signal',
-                payload: signal
-              });
-              console.log(`=== Signal ${signal.type} sent successfully ===`);
-              clearTimeout(timeout);
-              // Keep channel alive for 30 seconds for potential responses
-              setTimeout(() => {
-                targetChannel.unsubscribe();
-              }, 30000);
-              resolve();
-            } catch (error) {
-              clearTimeout(timeout);
-              targetChannel.unsubscribe();
-              reject(error);
-            }
-          }
-        });
+    channelRef.current.send({
+      type: 'broadcast',
+      event: 'signal',
+      payload: fullPayload
     });
-  }, []);
-
-  const sendOffer = useCallback((offer: RTCSessionDescriptionInit) => {
-    sendSignal({
-      type: 'webrtc-offer',
-      senderId: currentUserId,
-      targetId: targetUserId,
-      data: offer
-    });
-  }, [currentUserId, targetUserId, sendSignal]);
-
-  const sendAnswer = useCallback((answer: RTCSessionDescriptionInit) => {
-    sendSignal({
-      type: 'webrtc-answer',
-      senderId: currentUserId,
-      targetId: targetUserId,
-      data: answer
-    });
-  }, [currentUserId, targetUserId, sendSignal]);
-
-  const sendIceCandidate = useCallback((candidate: RTCIceCandidateInit) => {
-    sendSignal({
-      type: 'webrtc-ice-candidate',
-      senderId: currentUserId,
-      targetId: targetUserId,
-      data: candidate
-    });
-  }, [currentUserId, targetUserId, sendSignal]);
-
-  const sendReady = useCallback(() => {
-    console.log('=== Callee sending ready signal ===');
-    sendSignal({
-      type: 'webrtc-ready',
-      senderId: currentUserId,
-      targetId: targetUserId
-    });
-  }, [currentUserId, targetUserId, sendSignal]);
+  }, [currentUserId]);
 
   return {
-    sendOffer,
-    sendAnswer,
-    sendIceCandidate,
-    sendReady,
-    set onOffer(callback: ((offer: RTCSessionDescriptionInit) => void) | undefined) {
-      onOfferRef.current = callback;
-    },
-    set onAnswer(callback: ((answer: RTCSessionDescriptionInit) => void) | undefined) {
-      onAnswerRef.current = callback;
-    },
-    set onIceCandidate(callback: ((candidate: RTCIceCandidateInit) => void) | undefined) {
-      onIceCandidateRef.current = callback;
-    },
-    set onReady(callback: (() => void) | undefined) {
-      onReadyRef.current = callback;
-    }
+    sendSignal,
+    isConnected: isConnectedRef.current
   };
 }

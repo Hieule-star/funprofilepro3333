@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2 } from "lucide-react";
 import { WebRTCManager } from "@/utils/WebRTCManager";
-import { useWebRTCSignaling } from "@/hooks/useWebRTCSignaling";
+import { useWebRTCSignaling, SignalPayload } from "@/hooks/useWebRTCSignaling";
 
 interface VideoCallModalProps {
   open: boolean;
@@ -33,173 +33,111 @@ export default function VideoCallModal({
 }: VideoCallModalProps) {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
-  const [callStatus, setCallStatus] = useState<'waiting' | 'connecting' | 'connected' | 'ended'>(
-    isCaller ? 'waiting' : 'connecting'
-  );
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'ended'>('connecting');
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const webrtcManagerRef = useRef<WebRTCManager | null>(null);
+  const initRef = useRef(false);
 
-  // WebRTC signaling via Supabase Realtime
-  const signaling = useWebRTCSignaling(
+  // Handle incoming signals
+  const handleSignal = useCallback((payload: SignalPayload) => {
+    console.log('[VideoCallModal] Received signal:', payload.type);
+    webrtcManagerRef.current?.handleSignal(payload);
+  }, []);
+
+  // WebRTC signaling - use conversationId as roomId
+  const { sendSignal } = useWebRTCSignaling(
+    open ? conversationId : undefined,
     currentUserId,
-    targetUserId,
-    conversationId,
-    open
+    handleSignal
   );
 
-  // Cleanup only on unmount
+  // Initialize call
+  useEffect(() => {
+    if (!open || initRef.current) return;
+    
+    // Both parties should initialize when modal opens
+    console.log('[VideoCallModal] Initializing...', { isCaller, callAccepted });
+    
+    const initCall = async () => {
+      try {
+        initRef.current = true;
+        setCallStatus('connecting');
+
+        // Create WebRTC manager
+        const manager = new WebRTCManager(
+          currentUserId,
+          (remoteStream) => {
+            console.log('[VideoCallModal] Got remote stream');
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = remoteStream;
+              setCallStatus('connected');
+            }
+          },
+          (state) => {
+            console.log('[VideoCallModal] Connection state:', state);
+            if (state === 'disconnected' || state === 'failed' || state === 'closed') {
+              setCallStatus('ended');
+            }
+          }
+        );
+
+        webrtcManagerRef.current = manager;
+        
+        // Connect sendSignal from hook to manager
+        manager.setSendSignal(sendSignal);
+        
+        // Initialize peer connection
+        await manager.initialize(isCaller);
+
+        // Get local stream
+        let localStream: MediaStream;
+        if (isCaller) {
+          localStream = await manager.startCall(
+            videoEnabled,
+            selectedDevices?.videoDeviceId,
+            selectedDevices?.audioDeviceId
+          );
+        } else {
+          localStream = await manager.answerCall(videoEnabled);
+        }
+
+        // Show local video
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = localStream;
+        }
+
+      } catch (error) {
+        console.error('[VideoCallModal] Init error:', error);
+        onOpenChange(false);
+      }
+    };
+
+    initCall();
+  }, [open, currentUserId, isCaller, callAccepted, sendSignal, selectedDevices, videoEnabled, onOpenChange]);
+
+  // Cleanup on close/unmount
   useEffect(() => {
     return () => {
-      console.log('=== VideoCallModal: Unmounting, cleaning up ===');
       if (webrtcManagerRef.current) {
         webrtcManagerRef.current.endCall();
         webrtcManagerRef.current = null;
       }
-      setIsInitialized(false);
+      initRef.current = false;
     };
   }, []);
 
-  // Initialize WebRTC connection
+  // Reset when modal closes
   useEffect(() => {
     if (!open) {
-      console.log('=== VideoCallModal: Modal closed, resetting ===');
-      setIsInitialized(false);
-      return;
+      initRef.current = false;
+      if (webrtcManagerRef.current) {
+        webrtcManagerRef.current.endCall();
+        webrtcManagerRef.current = null;
+      }
     }
-    
-    // Prevent re-initialization
-    if (isInitialized || webrtcManagerRef.current) {
-      console.log('=== VideoCallModal: Already initialized, skipping ===');
-      return;
-    }
-    
-    // Caller waits for acceptance
-    if (isCaller && !callAccepted) {
-      console.log('=== VideoCallModal: Caller waiting for acceptance ===');
-      setCallStatus('waiting');
-      return;
-    }
-
-    // Once accepted or if callee, initialize WebRTC
-    if (!isCaller || callAccepted) {
-      console.log('=== VideoCallModal: Initializing call ===');
-      console.log('isCaller:', isCaller, 'callAccepted:', callAccepted);
-      console.log('currentUserId:', currentUserId, 'targetUserId:', targetUserId);
-      
-      setCallStatus('connecting');
-      setIsInitialized(true);
-      
-      const initializeCall = async () => {
-        try {
-          console.log('=== Creating WebRTCManager ===');
-          const manager = new WebRTCManager(
-            currentUserId,
-            targetUserId,
-            conversationId,
-            (remoteStream) => {
-              console.log('=== Received remote stream ===');
-              if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = remoteStream;
-                setCallStatus('connected');
-              }
-            },
-            () => {
-              console.log('=== Call ended by peer ===');
-              setCallStatus('ended');
-              onOpenChange(false);
-            }
-          );
-
-          webrtcManagerRef.current = manager;
-          
-          // Connect signaling to manager
-          manager.setSignalingCallbacks({
-            onOffer: async (offer) => {
-              // This will be called by signaling when offer arrives
-            },
-            onAnswer: async (answer) => {
-              // This will be called by signaling when answer arrives
-            },
-            onIceCandidate: async (candidate) => {
-              // This will be called by signaling when ICE candidate arrives
-            },
-            onReady: async () => {
-              // This will be called by signaling when peer is ready
-            },
-            sendOffer: signaling.sendOffer,
-            sendAnswer: signaling.sendAnswer,
-            sendIceCandidate: signaling.sendIceCandidate,
-            sendReady: signaling.sendReady
-          });
-
-          // Set up signaling event handlers to call manager methods
-          signaling.onOffer = (offer) => {
-            console.log('=== Received offer via signaling ===');
-            // Call private method through the callbacks
-            const callbacks = manager['signalingCallbacks'];
-            if (callbacks) {
-              callbacks.onOffer(offer);
-            }
-          };
-
-          signaling.onAnswer = (answer) => {
-            console.log('=== Received answer via signaling ===');
-            const callbacks = manager['signalingCallbacks'];
-            if (callbacks) {
-              callbacks.onAnswer(answer);
-            }
-          };
-
-          signaling.onIceCandidate = (candidate) => {
-            console.log('=== Received ICE candidate via signaling ===');
-            const callbacks = manager['signalingCallbacks'];
-            if (callbacks) {
-              callbacks.onIceCandidate(candidate);
-            }
-          };
-
-          signaling.onReady = () => {
-            console.log('=== Received ready signal via signaling ===');
-            const callbacks = manager['signalingCallbacks'];
-            if (callbacks) {
-              callbacks.onReady();
-            }
-          };
-          
-          console.log('=== Calling manager.initialize() ===');
-          await manager.initialize(isCaller);
-          console.log('=== manager.initialize() completed ===');
-
-          let localStream: MediaStream;
-          if (isCaller) {
-            console.log('=== Starting call as caller ===');
-            localStream = await manager.startCall(
-              videoEnabled,
-              selectedDevices?.videoDeviceId,
-              selectedDevices?.audioDeviceId
-            );
-          } else {
-            console.log('=== Answering call as callee ===');
-            localStream = await manager.answerCall(videoEnabled);
-          }
-
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = localStream;
-            console.log('=== Local stream set to video element ===');
-          }
-        } catch (error) {
-          console.error("=== Error initializing call ===", error);
-          setIsInitialized(false);
-          onOpenChange(false);
-        }
-      };
-
-      initializeCall();
-    }
-  }, [open, currentUserId, targetUserId, conversationId, isCaller, callAccepted, isInitialized]);
+  }, [open]);
 
   const toggleAudio = () => {
     const newState = !audioEnabled;
@@ -222,7 +160,7 @@ export default function VideoCallModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden">
         <div className="relative w-full h-full bg-gray-900">
-          {/* Remote video (large) */}
+          {/* Remote video */}
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -230,7 +168,7 @@ export default function VideoCallModal({
             className="w-full h-full object-cover"
           />
 
-          {/* Local video (small, floating) */}
+          {/* Local video */}
           <div className="absolute top-4 right-4 w-48 h-36 bg-gray-800 rounded-lg overflow-hidden border-2 border-white/20">
             <video
               ref={localVideoRef}
@@ -241,9 +179,9 @@ export default function VideoCallModal({
             />
           </div>
 
-          {/* Call status với loading indicator */}
+          {/* Status */}
           <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
-            {(callStatus === 'waiting' || callStatus === 'connecting') && (
+            {callStatus === 'connecting' && (
               <Loader2 className="h-4 w-4 text-white animate-spin" />
             )}
             {callStatus === 'connected' && (
@@ -253,7 +191,6 @@ export default function VideoCallModal({
               <div className="h-2 w-2 rounded-full bg-red-500" />
             )}
             <p className="text-white text-sm font-medium">
-              {callStatus === 'waiting' && `Đang chờ ${targetUsername} phản hồi...`}
               {callStatus === 'connecting' && `Đang kết nối với ${targetUsername}...`}
               {callStatus === 'connected' && `Đang gọi ${targetUsername}`}
               {callStatus === 'ended' && 'Cuộc gọi đã kết thúc'}

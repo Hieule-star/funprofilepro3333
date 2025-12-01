@@ -1,202 +1,203 @@
-interface SignalingCallbacks {
-  onOffer: (offer: RTCSessionDescriptionInit) => Promise<void>;
-  onAnswer: (answer: RTCSessionDescriptionInit) => Promise<void>;
-  onIceCandidate: (candidate: RTCIceCandidateInit) => Promise<void>;
-  onReady: () => Promise<void>;
-  sendOffer: (offer: RTCSessionDescriptionInit) => void;
-  sendAnswer: (answer: RTCSessionDescriptionInit) => void;
-  sendIceCandidate: (candidate: RTCIceCandidateInit) => void;
-  sendReady: () => void;
-}
+import { SignalPayload } from "@/hooks/useWebRTCSignaling";
 
 export class WebRTCManager {
   private pc: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
   private remoteStream: MediaStream | null = null;
   private userId: string;
-  private targetUserId: string;
-  private conversationId: string;
-  private onRemoteStream?: (stream: MediaStream) => void;
-  private onCallEnded?: () => void;
   private isCallerRole: boolean = true;
-  private signalingCallbacks?: SignalingCallbacks;
+  private sendSignal: ((payload: SignalPayload) => void) | null = null;
+  
+  // Callbacks
+  private onRemoteStream?: (stream: MediaStream) => void;
+  private onConnectionStateChange?: (state: RTCPeerConnectionState) => void;
 
   constructor(
     userId: string,
-    targetUserId: string,
-    conversationId: string,
     onRemoteStream?: (stream: MediaStream) => void,
-    onCallEnded?: () => void
+    onConnectionStateChange?: (state: RTCPeerConnectionState) => void
   ) {
     this.userId = userId;
-    this.targetUserId = targetUserId;
-    this.conversationId = conversationId;
     this.onRemoteStream = onRemoteStream;
-    this.onCallEnded = onCallEnded;
+    this.onConnectionStateChange = onConnectionStateChange;
   }
 
-  setSignalingCallbacks(callbacks: SignalingCallbacks) {
-    this.signalingCallbacks = callbacks;
-    
-    // Set up incoming signal handlers
-    callbacks.onOffer = async (offer: RTCSessionDescriptionInit) => {
-      await this.handleOffer(offer);
-    };
-    
-    callbacks.onAnswer = async (answer: RTCSessionDescriptionInit) => {
-      await this.handleAnswer(answer);
-    };
-    
-    callbacks.onIceCandidate = async (candidate: RTCIceCandidateInit) => {
-      await this.handleIceCandidate(candidate);
-    };
-    
-    callbacks.onReady = async () => {
-      // Caller receives this - callee is ready, now send offer
-      if (this.isCallerRole && this.pc) {
-        console.log('=== Peer is ready, creating and sending offer ===');
-        const offer = await this.pc.createOffer();
-        await this.pc.setLocalDescription(offer);
-        this.signalingCallbacks?.sendOffer(offer);
-      }
-    };
+  // Set sendSignal callback from hook
+  setSendSignal(sendSignal: (payload: SignalPayload) => void) {
+    this.sendSignal = sendSignal;
   }
 
-  async initialize(isCaller: boolean = true) {
+  // Handle incoming signals from hook
+  async handleSignal(payload: SignalPayload) {
+    console.log(`[WebRTCManager] Handling signal: ${payload.type}`);
+    
+    switch (payload.type) {
+      case 'webrtc-ready':
+        await this.onPeerReady();
+        break;
+      case 'webrtc-offer':
+        await this.handleOffer(payload.data);
+        break;
+      case 'webrtc-answer':
+        await this.handleAnswer(payload.data);
+        break;
+      case 'webrtc-ice-candidate':
+        await this.handleIceCandidate(payload.data);
+        break;
+    }
+  }
+
+  // Initialize peer connection
+  async initialize(isCaller: boolean) {
     this.isCallerRole = isCaller;
-    console.log(`=== WebRTCManager initialized as ${isCaller ? 'caller' : 'callee'} ===`);
-    
-    // Setup peer connection immediately
+    console.log(`[WebRTCManager] Initializing as ${isCaller ? 'caller' : 'callee'}`);
     this.setupPeerConnection();
   }
 
+  // Caller: Start call and wait for peer-ready
   async startCall(
     videoEnabled: boolean = true, 
     videoDeviceId?: string, 
     audioDeviceId?: string
-  ) {
+  ): Promise<MediaStream> {
+    const constraints: MediaStreamConstraints = {
+      video: videoEnabled 
+        ? (videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true)
+        : false,
+      audio: audioDeviceId 
+        ? { deviceId: { exact: audioDeviceId } } 
+        : true
+    };
+
+    console.log('[WebRTCManager] Getting user media for caller');
+    this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+    this.localStream.getTracks().forEach(track => {
+      this.pc?.addTrack(track, this.localStream!);
+    });
+
+    console.log('[WebRTCManager] Caller ready, waiting for peer-ready signal');
+    return this.localStream;
+  }
+
+  // Callee: Answer call and send ready signal
+  async answerCall(videoEnabled: boolean = true): Promise<MediaStream> {
+    console.log('[WebRTCManager] Getting user media for callee');
+    this.localStream = await navigator.mediaDevices.getUserMedia({
+      video: videoEnabled,
+      audio: true
+    });
+
+    this.localStream.getTracks().forEach(track => {
+      this.pc?.addTrack(track, this.localStream!);
+    });
+
+    // Send ready signal to caller
+    console.log('[WebRTCManager] Callee sending ready signal');
+    this.sendSignal?.({
+      type: 'webrtc-ready',
+      senderId: this.userId
+    });
+
+    return this.localStream;
+  }
+
+  // When callee is ready - caller creates and sends offer
+  private async onPeerReady() {
+    if (!this.isCallerRole || !this.pc) return;
+    
+    console.log('[WebRTCManager] Peer is ready, creating offer');
+    const offer = await this.pc.createOffer();
+    await this.pc.setLocalDescription(offer);
+    
+    console.log('[WebRTCManager] Sending offer');
+    this.sendSignal?.({
+      type: 'webrtc-offer',
+      senderId: this.userId,
+      data: offer
+    });
+  }
+
+  // Handle incoming offer (callee)
+  private async handleOffer(offer: RTCSessionDescriptionInit) {
+    if (!this.pc) return;
+    
+    console.log('[WebRTCManager] Received offer, creating answer');
+    await this.pc.setRemoteDescription(new RTCSessionDescription(offer));
+    
+    const answer = await this.pc.createAnswer();
+    await this.pc.setLocalDescription(answer);
+    
+    console.log('[WebRTCManager] Sending answer');
+    this.sendSignal?.({
+      type: 'webrtc-answer',
+      senderId: this.userId,
+      data: answer
+    });
+  }
+
+  // Handle incoming answer (caller)
+  private async handleAnswer(answer: RTCSessionDescriptionInit) {
+    if (!this.pc) return;
+    
+    console.log('[WebRTCManager] Received answer, setting remote description');
+    await this.pc.setRemoteDescription(new RTCSessionDescription(answer));
+  }
+
+  // Handle ICE candidate
+  private async handleIceCandidate(candidate: RTCIceCandidateInit) {
+    if (!this.pc) return;
+    
     try {
-      const constraints: MediaStreamConstraints = {
-        video: videoEnabled 
-          ? (videoDeviceId ? { deviceId: { exact: videoDeviceId } } : true)
-          : false,
-        audio: audioDeviceId 
-          ? { deviceId: { exact: audioDeviceId } } 
-          : true
-      };
-
-      console.log('=== Getting user media with constraints ===', constraints);
-      this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-
-      this.localStream.getTracks().forEach(track => {
-        this.pc?.addTrack(track, this.localStream!);
-      });
-
-      console.log("=== Caller setup complete, waiting for peer-ready signal ===");
-
-      return this.localStream;
+      console.log('[WebRTCManager] Adding ICE candidate');
+      await this.pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
-      console.error("=== Error starting call ===", error);
-      throw error;
+      console.error('[WebRTCManager] Error adding ICE candidate:', error);
     }
   }
 
-  async answerCall(videoEnabled: boolean = true) {
-    try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({
-        video: videoEnabled,
-        audio: true
-      });
-
-      this.localStream.getTracks().forEach(track => {
-        this.pc?.addTrack(track, this.localStream!);
-      });
-
-      console.log("=== Callee setup complete, sending ready signal ===");
-      
-      // Callee sends ready signal to caller
-      this.signalingCallbacks?.sendReady();
-
-      return this.localStream;
-    } catch (error) {
-      console.error("=== Error answering call ===", error);
-      throw error;
-    }
-  }
-
+  // Setup RTCPeerConnection
   private setupPeerConnection() {
     this.pc = new RTCPeerConnection({
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
       ]
     });
 
+    // Send ICE candidates to peer
     this.pc.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log('=== Sending ICE candidate ===');
-        this.signalingCallbacks?.sendIceCandidate(event.candidate.toJSON());
+        console.log('[WebRTCManager] Sending ICE candidate');
+        this.sendSignal?.({
+          type: 'webrtc-ice-candidate',
+          senderId: this.userId,
+          data: event.candidate.toJSON()
+        });
       }
     };
 
+    // Receive remote tracks
     this.pc.ontrack = (event) => {
-      console.log("=== Received remote track ===");
+      console.log('[WebRTCManager] Received remote track');
       if (!this.remoteStream) {
         this.remoteStream = new MediaStream();
-        if (this.onRemoteStream) {
-          this.onRemoteStream(this.remoteStream);
-        }
+        this.onRemoteStream?.(this.remoteStream);
       }
       this.remoteStream.addTrack(event.track);
     };
 
+    // Monitor connection state
     this.pc.onconnectionstatechange = () => {
-      console.log("=== Connection state: ===", this.pc?.connectionState);
-      if (this.pc?.connectionState === 'disconnected' || 
-          this.pc?.connectionState === 'failed' ||
-          this.pc?.connectionState === 'closed') {
-        this.onCallEnded?.();
-      }
+      console.log('[WebRTCManager] Connection state:', this.pc?.connectionState);
+      this.onConnectionStateChange?.(this.pc?.connectionState || 'closed');
     };
-    
-    console.log('=== Peer connection setup complete ===');
+
+    console.log('[WebRTCManager] Peer connection setup complete');
   }
 
-  private async handleOffer(offer: RTCSessionDescriptionInit) {
-    console.log('=== Handling offer ===');
-    
-    if (!this.pc) {
-      this.setupPeerConnection();
-    }
-
-    if (this.localStream) {
-      this.localStream.getTracks().forEach(track => {
-        this.pc?.addTrack(track, this.localStream!);
-      });
-    }
-
-    await this.pc!.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer = await this.pc!.createAnswer();
-    await this.pc!.setLocalDescription(answer);
-
-    console.log('=== Sending answer ===');
-    this.signalingCallbacks?.sendAnswer(answer);
-  }
-
-  private async handleAnswer(answer: RTCSessionDescriptionInit) {
-    console.log('=== Handling answer ===');
-    await this.pc?.setRemoteDescription(new RTCSessionDescription(answer));
-  }
-
-  private async handleIceCandidate(candidate: RTCIceCandidateInit) {
-    try {
-      console.log('=== Adding ICE candidate ===');
-      await this.pc?.addIceCandidate(new RTCIceCandidate(candidate));
-    } catch (error) {
-      console.error("=== Error adding ICE candidate ===", error);
-    }
-  }
-
+  // Control methods
   toggleAudio(enabled: boolean) {
     this.localStream?.getAudioTracks().forEach(track => {
       track.enabled = enabled;
@@ -210,19 +211,12 @@ export class WebRTCManager {
   }
 
   endCall() {
-    this.cleanup();
-  }
-
-  private cleanup() {
-    console.log('=== Cleaning up WebRTC resources ===');
-    
+    console.log('[WebRTCManager] Ending call, cleaning up');
     this.localStream?.getTracks().forEach(track => track.stop());
     this.pc?.close();
     
     this.localStream = null;
     this.remoteStream = null;
     this.pc = null;
-    
-    this.onCallEnded?.();
   }
 }
