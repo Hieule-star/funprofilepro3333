@@ -12,6 +12,7 @@ import { privyConfig, isPrivyConfigured } from "@/lib/privy-config";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { RewardNotificationProvider } from "@/components/RewardNotificationProvider";
 import { MessageNotificationProvider } from "@/components/MessageNotificationProvider";
+import { IncomingCallProvider } from "@/components/IncomingCallProvider";
 import Navbar from "./components/Navbar";
 import Feed from "./pages/Feed";
 import Friends from "./pages/Friends";
@@ -44,10 +45,11 @@ const App = () => {
               <Sonner />
               <BrowserRouter>
                 <AuthProvider>
-                  <RewardNotificationProvider>
-                    <MessageNotificationProvider>
-                      <WalletProvider>
-                        <Navbar />
+                  <IncomingCallProvider>
+                    <RewardNotificationProvider>
+                      <MessageNotificationProvider>
+                        <WalletProvider>
+                          <Navbar />
                       <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route
@@ -133,9 +135,10 @@ const App = () => {
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                       </Routes>
-                      </WalletProvider>
-                    </MessageNotificationProvider>
-                  </RewardNotificationProvider>
+                        </WalletProvider>
+                      </MessageNotificationProvider>
+                    </RewardNotificationProvider>
+                  </IncomingCallProvider>
                 </AuthProvider>
               </BrowserRouter>
         </TooltipProvider>
@@ -148,10 +151,11 @@ const App = () => {
             <Sonner />
             <BrowserRouter>
               <AuthProvider>
-                <RewardNotificationProvider>
-                  <MessageNotificationProvider>
-                    <WalletProvider>
-                      <Navbar />
+                <IncomingCallProvider>
+                  <RewardNotificationProvider>
+                    <MessageNotificationProvider>
+                      <WalletProvider>
+                        <Navbar />
                     <Routes>
                     <Route path="/auth" element={<Auth />} />
                     <Route
@@ -236,9 +240,10 @@ const App = () => {
                      />
                      <Route path="*" element={<NotFound />} />
                     </Routes>
-                    </WalletProvider>
-                  </MessageNotificationProvider>
-                </RewardNotificationProvider>
+                      </WalletProvider>
+                    </MessageNotificationProvider>
+                  </RewardNotificationProvider>
+                </IncomingCallProvider>
               </AuthProvider>
             </BrowserRouter>
           </TooltipProvider>

@@ -10,7 +10,7 @@ interface CallInvitation {
   timestamp: number;
 }
 
-interface CallSignalingHook {
+export interface CallSignalingHook {
   initiateCall: (targetUserId: string, conversationId: string, callerInfo: { name: string; avatar?: string }) => Promise<boolean>;
   acceptCall: (callerId: string) => void;
   rejectCall: (callerId: string) => void;
