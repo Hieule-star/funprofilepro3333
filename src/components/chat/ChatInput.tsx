@@ -178,7 +178,7 @@ export default function ChatInput({ onSendMessage, onTyping }: ChatInputProps) {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,video/*,.pdf,.doc,.docx"
+          accept="*/*"
           onChange={handleFileSelect}
           className="hidden"
         />
