@@ -34,6 +34,7 @@ const POPULAR_TOKENS = [
   { symbol: "USDC", name: "USD Coin", address: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", decimals: 18 },
   { symbol: "BUSD", name: "Binance USD", address: "0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56", decimals: 18 },
   { symbol: "CAKE", name: "PancakeSwap", address: "0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82", decimals: 18 },
+  { symbol: "CAMLY", name: "CAMLY COIN", address: "0x0910320181889fefde0bb1ca63962b0a8882e413", decimals: 3 },
 ];
 
 export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
@@ -317,7 +318,7 @@ export default function SwapModal({ isOpen, onClose }: SwapModalProps) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {POPULAR_TOKENS.map((token) => (
+                  {availableTokens.map((token) => (
                     <SelectItem key={token.address} value={token.address}>
                       {token.symbol}
                     </SelectItem>
