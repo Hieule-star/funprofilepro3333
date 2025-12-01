@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2 } from "lucide-react";
 import { WebRTCManager } from "@/utils/WebRTCManager";
 
 interface VideoCallModalProps {
@@ -143,8 +143,17 @@ export default function VideoCallModal({
             />
           </div>
 
-          {/* Call status */}
-          <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full">
+          {/* Call status với loading indicator */}
+          <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
+            {(callStatus === 'waiting' || callStatus === 'connecting') && (
+              <Loader2 className="h-4 w-4 text-white animate-spin" />
+            )}
+            {callStatus === 'connected' && (
+              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            )}
+            {callStatus === 'ended' && (
+              <div className="h-2 w-2 rounded-full bg-red-500" />
+            )}
             <p className="text-white text-sm font-medium">
               {callStatus === 'waiting' && `Đang chờ ${targetUsername} phản hồi...`}
               {callStatus === 'connecting' && `Đang kết nối với ${targetUsername}...`}
