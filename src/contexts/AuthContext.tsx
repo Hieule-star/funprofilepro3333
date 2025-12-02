@@ -23,6 +23,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Get the correct redirect URL based on environment
+const getRedirectUrl = () => {
+  const hostname = window.location.hostname;
+  // If on production Lovable domains, use current origin
+  if (hostname.includes('lovableproject.com') || hostname.includes('lovable.app')) {
+    return `${window.location.origin}/`;
+  }
+  // For localhost or other environments, redirect to production URL
+  return 'https://7228e047-a4a7-4ff2-8205-7fe56c37fcba.lovableproject.com/';
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -79,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, username?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = getRedirectUrl();
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -105,7 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = getRedirectUrl();
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -118,7 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithFacebook = async () => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = getRedirectUrl();
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "facebook",
