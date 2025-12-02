@@ -25,13 +25,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Get the correct redirect URL based on environment
 const getRedirectUrl = () => {
+  const origin = window.location.origin;
   const hostname = window.location.hostname;
-  // If on production Lovable domains, use current origin
-  if (hostname.includes('lovableproject.com') || hostname.includes('lovable.app')) {
-    return `${window.location.origin}/auth/callback`;
+
+  // Production: fuprofile.org
+  if (hostname === 'fuprofile.org') {
+    return 'https://fuprofile.org/auth';
   }
-  // For localhost or other environments, redirect to production URL
-  return 'https://7228e047-a4a7-4ff2-8205-7fe56c37fcba.lovableproject.com/auth/callback';
+
+  // Lovable preview/prod
+  if (origin.includes('lovableproject.com') || origin.includes('lovable.app')) {
+    return `${origin}/auth`;
+  }
+
+  // Local dev
+  return 'http://localhost:3000/auth';
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

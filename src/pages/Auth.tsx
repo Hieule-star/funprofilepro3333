@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wallet } from "lucide-react";
+import { Loader2, Wallet, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
 import ConnectWalletModal from "@/components/wallet/ConnectWalletModal";
+import { supabase } from "@/integrations/supabase/client";
 
 const signUpSchema = z.object({
   email: z.string().email("Email không hợp lệ").max(255),
@@ -28,6 +29,7 @@ export default function Auth() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [showConnectWallet, setShowConnectWallet] = useState(false);
+  const [showConfirmationSuccess, setShowConfirmationSuccess] = useState(false);
 
   // Sign Up Form
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -38,12 +40,46 @@ export default function Auth() {
   const [signInEmail, setSignInEmail] = useState("");
   const [signInPassword, setSignInPassword] = useState("");
 
-  // Redirect if already logged in
+  // Handle email confirmation from URL hash
   useEffect(() => {
-    if (user) {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const hasAccessToken = hashParams.has('access_token');
+
+    if (!hasAccessToken) return;
+
+    console.log('Detected access_token in URL, processing email confirmation...');
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('Auth event:', event, !!session);
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session) {
+          setShowConfirmationSuccess(true);
+          setTimeout(() => {
+            navigate('/');
+          }, 2000);
+        }
+      }
+    );
+
+    // Check if session already exists
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setShowConfirmationSuccess(true);
+        setTimeout(() => navigate('/'), 2000);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
+
+  // Redirect if already logged in (and not showing confirmation)
+  useEffect(() => {
+    if (user && !showConfirmationSuccess) {
       navigate("/");
     }
-  }, [user, navigate]);
+  }, [user, navigate, showConfirmationSuccess]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,6 +225,24 @@ export default function Auth() {
       setLoading(false);
     }
   };
+
+  // Show confirmation success screen
+  if (showConfirmationSuccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
+        <Card className="w-full max-w-md p-8 space-y-6 border-2 text-center">
+          <CheckCircle2 className="mx-auto h-16 w-16 text-green-500" />
+          <h2 className="text-2xl font-bold text-green-600">
+            🎉 Email đã được xác nhận thành công!
+          </h2>
+          <p className="text-muted-foreground">
+            Đang chuyển bạn vào Fun Profile...
+          </p>
+          <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-background to-primary/5">
