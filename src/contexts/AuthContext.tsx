@@ -28,10 +28,10 @@ const getRedirectUrl = () => {
   const hostname = window.location.hostname;
   // If on production Lovable domains, use current origin
   if (hostname.includes('lovableproject.com') || hostname.includes('lovable.app')) {
-    return `${window.location.origin}/`;
+    return `${window.location.origin}/auth/callback`;
   }
   // For localhost or other environments, redirect to production URL
-  return 'https://7228e047-a4a7-4ff2-8205-7fe56c37fcba.lovableproject.com/';
+  return 'https://7228e047-a4a7-4ff2-8205-7fe56c37fcba.lovableproject.com/auth/callback';
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
