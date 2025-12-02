@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import confetti from "canvas-confetti";
+import { triggerFloatingHearts } from "@/components/ui/floating-hearts";
 import {
   Dialog,
   DialogContent,
@@ -179,42 +179,6 @@ export default function SendModal({ isOpen, onClose, customTokens = [], preSelec
     }
   };
 
-  // Confetti celebration effect
-  const fireConfetti = () => {
-    const colors = ['#ff69b4', '#ff1493', '#ffd700', '#ff6b6b', '#ffffff', '#ff85c1'];
-    
-    // Initial burst from center
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: colors,
-    });
-    
-    // Continuous burst from corners
-    const end = Date.now() + 2000;
-    const frame = () => {
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: colors,
-      });
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: colors,
-      });
-      
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    };
-    frame();
-  };
 
   // Save transaction to database when confirmed
   const saveTransaction = async (txHash: string) => {
@@ -255,8 +219,8 @@ export default function SendModal({ isOpen, onClose, customTokens = [], preSelec
     if (isSuccess && txHash && !hasHandledSuccess) {
       setHasHandledSuccess(true);
       
-      // Fire confetti celebration
-      fireConfetti();
+      // Fire floating hearts celebration
+      triggerFloatingHearts();
       
       // Save transaction
       saveTransaction(txHash);
