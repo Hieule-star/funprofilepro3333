@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Coins, ArrowRight, Loader2, ExternalLink, Gift, Sparkles } from "lucide-react";
 import { useWallets } from "@privy-io/react-auth";
-import confetti from "canvas-confetti";
+import { triggerFloatingHearts } from "@/components/ui/floating-hearts";
 
 interface ClaimCamlyModalProps {
   open: boolean;
@@ -39,51 +39,6 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
     }
   };
 
-  const fireConfetti = () => {
-    const colors = ['#ff69b4', '#ff1493', '#ffd700', '#00ff00', '#00d4ff', '#ff6b6b', '#ffffff'];
-    
-    // Initial big burst from center
-    confetti({
-      particleCount: 150,
-      spread: 100,
-      origin: { y: 0.6 },
-      colors: colors,
-    });
-    
-    // Continuous confetti from both sides for 2.5 seconds
-    const end = Date.now() + 2500;
-    const frame = () => {
-      confetti({
-        particleCount: 4,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: colors,
-      });
-      confetti({
-        particleCount: 4,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: colors,
-      });
-      
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    };
-    frame();
-    
-    // Extra burst in the middle
-    setTimeout(() => {
-      confetti({
-        particleCount: 80,
-        spread: 120,
-        origin: { y: 0.5 },
-        colors: colors,
-      });
-    }, 1000);
-  };
 
   const handleClaim = async () => {
     if (!user) {
@@ -135,8 +90,8 @@ export const ClaimCamlyModal = ({ open, onOpenChange, camlyBalance }: ClaimCamly
         return;
       }
 
-      // 🎉 Fire confetti celebration and play sound!
-      fireConfetti();
+      // 🎉 Fire floating hearts celebration and play sound!
+      triggerFloatingHearts();
       playCelebrationSound();
 
       toast.success(

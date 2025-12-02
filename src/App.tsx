@@ -13,6 +13,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { RewardNotificationProvider } from "@/components/RewardNotificationProvider";
 import { MessageNotificationProvider } from "@/components/MessageNotificationProvider";
 import { IncomingCallProvider } from "@/components/IncomingCallProvider";
+import { FloatingHeartsProvider } from "@/components/ui/floating-hearts";
 import Navbar from "./components/Navbar";
 import Feed from "./pages/Feed";
 import Friends from "./pages/Friends";
@@ -44,13 +45,14 @@ const App = () => {
             <TooltipProvider>
               <Toaster />
               <Sonner />
-              <BrowserRouter>
-                <AuthProvider>
-                  <IncomingCallProvider>
-                    <RewardNotificationProvider>
-                      <MessageNotificationProvider>
-                        <WalletProvider>
-                          <Navbar />
+              <FloatingHeartsProvider>
+                <BrowserRouter>
+                  <AuthProvider>
+                    <IncomingCallProvider>
+                      <RewardNotificationProvider>
+                        <MessageNotificationProvider>
+                          <WalletProvider>
+                            <Navbar />
                       <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
@@ -136,27 +138,29 @@ const App = () => {
             />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
-                      </Routes>
-                        </WalletProvider>
-                      </MessageNotificationProvider>
-                    </RewardNotificationProvider>
-                  </IncomingCallProvider>
-                </AuthProvider>
-              </BrowserRouter>
-        </TooltipProvider>
-      </WagmiProvider>
-      </PrivyProvider>
+                        </Routes>
+                          </WalletProvider>
+                        </MessageNotificationProvider>
+                      </RewardNotificationProvider>
+                    </IncomingCallProvider>
+                  </AuthProvider>
+                </BrowserRouter>
+              </FloatingHeartsProvider>
+            </TooltipProvider>
+          </WagmiProvider>
+        </PrivyProvider>
       ) : (
         <WagmiProvider config={wagmiConfig}>
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            <BrowserRouter>
-              <AuthProvider>
-                <IncomingCallProvider>
-                  <RewardNotificationProvider>
-                    <MessageNotificationProvider>
-                      <WalletProvider>
+            <FloatingHeartsProvider>
+              <BrowserRouter>
+                <AuthProvider>
+                  <IncomingCallProvider>
+                    <RewardNotificationProvider>
+                      <MessageNotificationProvider>
+                        <WalletProvider>
                         <Navbar />
                     <Routes>
                     <Route path="/auth" element={<Auth />} />
@@ -241,14 +245,15 @@ const App = () => {
                          </ProtectedRoute>
                        }
                      />
-                     <Route path="*" element={<NotFound />} />
-                    </Routes>
-                      </WalletProvider>
-                    </MessageNotificationProvider>
-                  </RewardNotificationProvider>
-                </IncomingCallProvider>
-              </AuthProvider>
-            </BrowserRouter>
+                       <Route path="*" element={<NotFound />} />
+                      </Routes>
+                        </WalletProvider>
+                      </MessageNotificationProvider>
+                    </RewardNotificationProvider>
+                  </IncomingCallProvider>
+                </AuthProvider>
+              </BrowserRouter>
+            </FloatingHeartsProvider>
           </TooltipProvider>
         </WagmiProvider>
       )}
