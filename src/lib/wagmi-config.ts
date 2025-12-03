@@ -3,7 +3,7 @@ import { bsc, mainnet } from 'wagmi/chains';
 import { injected, walletConnect } from 'wagmi/connectors';
 
 // WalletConnect Project ID - Get from https://cloud.walletconnect.com
-const projectId = 'YOUR_WALLETCONNECT_PROJECT_ID';
+const projectId = '6a0a484a4acd4e698a59cbab06761630';
 
 export const wagmiConfig = createConfig({
   chains: [bsc, mainnet],
