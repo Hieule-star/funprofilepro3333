@@ -14,6 +14,13 @@ import { RewardNotificationProvider } from "@/components/RewardNotificationProvi
 import { MessageNotificationProvider } from "@/components/MessageNotificationProvider";
 import { IncomingCallProvider } from "@/components/IncomingCallProvider";
 import { FloatingHeartsProvider } from "@/components/ui/floating-hearts";
+import { useWalletReconnect } from "@/hooks/useWalletReconnect";
+
+// Component to trigger wallet reconnect on app mount
+function WalletReconnectWrapper() {
+  useWalletReconnect();
+  return null;
+}
 import Navbar from "./components/Navbar";
 import Feed from "./pages/Feed";
 import Friends from "./pages/Friends";
@@ -52,6 +59,7 @@ const App = () => {
                       <RewardNotificationProvider>
                         <MessageNotificationProvider>
                           <WalletProvider>
+                            <WalletReconnectWrapper />
                             <Navbar />
                       <Routes>
             <Route path="/auth" element={<Auth />} />
@@ -161,6 +169,7 @@ const App = () => {
                     <RewardNotificationProvider>
                       <MessageNotificationProvider>
                         <WalletProvider>
+                          <WalletReconnectWrapper />
                         <Navbar />
                     <Routes>
                     <Route path="/auth" element={<Auth />} />

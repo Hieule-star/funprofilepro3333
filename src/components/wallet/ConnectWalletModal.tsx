@@ -62,14 +62,18 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
   }, [authenticated, user, privyEnabled]);
 
   useEffect(() => {
-    if (wagmiConnected && !privyEnabled) {
-      toast({
-        title: "Kết nối ví thành công!",
-        description: "Ví của bạn đã được kết nối",
-      });
-      onOpenChange(false);
+    if (wagmiConnected && !privyEnabled && open) {
+      // Delay để đảm bảo wagmi state đã sync hoàn toàn
+      const timer = setTimeout(() => {
+        toast({
+          title: "Kết nối ví thành công!",
+          description: "Ví của bạn đã được kết nối",
+        });
+        onOpenChange(false);
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [wagmiConnected, privyEnabled]);
+  }, [wagmiConnected, privyEnabled, open]);
 
   const handleSocialLogin = (method: 'google' | 'email' | 'farcaster' | 'telegram') => {
     if (!privyEnabled) {
