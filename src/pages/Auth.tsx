@@ -440,7 +440,7 @@ export default function Auth() {
         <Button
           variant="default"
           onClick={() => setShowConnectWallet(true)}
-          className="w-full gap-2 bg-gradient-primary"
+          className="w-full gap-2 gradient-primary text-white"
         >
           <Wallet className="h-5 w-5" />
           Kết nối ví Web3
