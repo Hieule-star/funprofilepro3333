@@ -67,7 +67,7 @@ export default function AgoraVideoCallModal({
     }
   }, [open, conversationId, mode, selectedVideoDeviceId, selectedAudioDeviceId, joinChannel, onOpenChange]);
 
-  // Cleanup when modal closes
+  // Cleanup when component unmounts
   useEffect(() => {
     return () => {
       if (hasJoinedRef.current) {
@@ -77,7 +77,8 @@ export default function AgoraVideoCallModal({
         isJoiningRef.current = false;
       }
     };
-  }, [leaveChannel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run on unmount
 
   // Update status when remote user joins
   useEffect(() => {

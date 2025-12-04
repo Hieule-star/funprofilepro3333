@@ -40,6 +40,10 @@ export default function Chat() {
     callerName: string;
   } | null>(null);
   
+  // Flags to track if user confirmed device selection (vs cancelled)
+  const [callerConfirmedDevices, setCallerConfirmedDevices] = useState(false);
+  const [calleeConfirmedDevices, setCalleeConfirmedDevices] = useState(false);
+  
   const { typingUsers, setTyping } = useTypingIndicator(
     selectedConversation?.id,
     user?.id
@@ -183,6 +187,7 @@ export default function Chat() {
   // Handler for callee device confirmation
   const handleCalleeDeviceConfirm = (devices: { videoDeviceId: string; audioDeviceId: string }) => {
     console.log('[Chat] Callee: Device selection confirmed, opening VideoCallModal');
+    setCalleeConfirmedDevices(true); // Set flag BEFORE closing modal
     setSelectedDevices(devices);
     setCalleeDeviceModalOpen(false);
     setVideoCallOpen(true);
@@ -327,6 +332,7 @@ export default function Chat() {
   const handleDeviceConfirm = async (devices: { videoDeviceId: string; audioDeviceId: string }) => {
     if (!pendingCallTarget || !profile) return;
 
+    setCallerConfirmedDevices(true); // Set flag BEFORE closing modal
     setSelectedDevices(devices);
     setDeviceSelectionOpen(false);
     setIsCaller(true);
@@ -412,7 +418,16 @@ export default function Chat() {
       {deviceSelectionOpen && pendingCallTarget && (
         <DeviceSelectionModal
           open={deviceSelectionOpen}
-          onOpenChange={setDeviceSelectionOpen}
+          onOpenChange={(open) => {
+            setDeviceSelectionOpen(open);
+            if (!open && !callerConfirmedDevices) {
+              // Only clear if user CANCELLED, not confirmed
+              setPendingCallTarget(null);
+            }
+            if (!open) {
+              setCallerConfirmedDevices(false); // Reset flag
+            }
+          }}
           onConfirm={handleDeviceConfirm}
           targetUsername={pendingCallTarget.username}
           mode={callMode}
@@ -445,10 +460,14 @@ export default function Chat() {
           open={calleeDeviceModalOpen}
           onOpenChange={(open) => {
             setCalleeDeviceModalOpen(open);
-            if (!open) {
-              // If closed without confirming, clear the pending call
+            if (!open && !calleeConfirmedDevices) {
+              // Only clear if user CANCELLED, not confirmed
+              console.log('[Chat] Callee: Modal closed without confirm, clearing call');
               setPendingCalleeCall(null);
               clearActiveCall();
+            }
+            if (!open) {
+              setCalleeConfirmedDevices(false); // Reset flag
             }
           }}
           onConfirm={handleCalleeDeviceConfirm}
