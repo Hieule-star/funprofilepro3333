@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Wallet, Mail, Chrome, AlertCircle, Loader2, Sparkles } from "lucide-react";
 import { usePrivy, useWallets, useConnectWallet } from '@privy-io/react-auth';
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { isPrivyConfigured } from "@/lib/privy-config";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -46,9 +46,12 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
     }
   }, [authenticated, user, privyEnabled]);
 
-  // Close modal when EOA wallet connected via Wagmi
+  // Track previous connection state to detect NEW connections only
+  const prevConnected = useRef(wagmiConnected);
+
+  // Close modal only when a NEW connection is established (false → true)
   useEffect(() => {
-    if (wagmiConnected && open) {
+    if (wagmiConnected && !prevConnected.current && open) {
       const timer = setTimeout(() => {
         toast({
           title: "Kết nối ví thành công!",
@@ -58,6 +61,7 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
       }, 500);
       return () => clearTimeout(timer);
     }
+    prevConnected.current = wagmiConnected;
   }, [wagmiConnected, open]);
 
   // === SMART WALLET FUNCTIONS (ERC-4337) ===
