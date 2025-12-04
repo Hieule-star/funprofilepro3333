@@ -7,13 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Wallet, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { z } from "zod";
-import ConnectWalletModal from "@/components/wallet/ConnectWalletModal";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { isPrivyConfigured } from "@/lib/privy-config";
-import { useConnect } from "wagmi";
 
 const signUpSchema = z.object({
   email: z.string().email("Email không hợp lệ").max(255),
@@ -31,14 +28,9 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [showConnectWallet, setShowConnectWallet] = useState(false);
   const [showConfirmationSuccess, setShowConfirmationSuccess] = useState(false);
   const [showEmailNotVerified, setShowEmailNotVerified] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState("");
-
-  // Wagmi for Web3 wallet connections
-  const { connectors, connect, isPending: wagmiPending } = useConnect();
-  const privyEnabled = isPrivyConfigured();
 
   // Sign Up Form
   const [signUpEmail, setSignUpEmail] = useState("");
@@ -239,11 +231,9 @@ export default function Auth() {
   };
 
   const handleTelegramSignIn = () => {
-    // Telegram requires Privy, open wallet modal with Telegram option
-    setShowConnectWallet(true);
     toast({
-      title: "Đăng nhập Telegram",
-      description: "Vui lòng sử dụng Telegram trong popup kết nối ví.",
+      title: "Telegram Login",
+      description: "Tính năng đăng nhập Telegram đang được phát triển.",
     });
   };
 
@@ -266,38 +256,6 @@ export default function Auth() {
       });
     }
     setLoading(false);
-  };
-
-  // Web3 wallet connection handlers
-  const handleConnectMetaMask = () => {
-    const metamaskConnector = connectors.find(c => c.id === 'injected' || c.name.toLowerCase().includes('metamask'));
-    if (metamaskConnector) {
-      connect({ connector: metamaskConnector });
-    } else {
-      toast({
-        title: "MetaMask không khả dụng",
-        description: "Vui lòng cài đặt extension MetaMask",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleConnectTrustWallet = () => {
-    const wcConnector = connectors.find(c => c.id === 'walletConnect');
-    if (wcConnector) {
-      connect({ connector: wcConnector });
-    } else {
-      setShowConnectWallet(true);
-    }
-  };
-
-  const handleConnectBitgetWallet = () => {
-    const wcConnector = connectors.find(c => c.id === 'walletConnect');
-    if (wcConnector) {
-      connect({ connector: wcConnector });
-    } else {
-      setShowConnectWallet(true);
-    }
   };
 
   // Show confirmation success screen
@@ -535,97 +493,7 @@ export default function Auth() {
             Đăng nhập với Telegram
           </Button>
         </div>
-
-        {/* Web3 Wallets Section */}
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-card px-2 text-muted-foreground">
-              Đăng nhập bằng Ví Web3
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant="outline"
-            onClick={handleConnectMetaMask}
-            disabled={loading || wagmiPending}
-            className="flex flex-col items-center gap-1 h-auto py-3"
-          >
-            {wagmiPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" 
-                alt="MetaMask" 
-                className="h-6 w-6" 
-              />
-            )}
-            <span className="text-xs">MetaMask</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={handleConnectTrustWallet}
-            disabled={loading || wagmiPending}
-            className="flex flex-col items-center gap-1 h-auto py-3"
-          >
-            {wagmiPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <svg className="h-6 w-6" viewBox="0 0 40 40" fill="none">
-                <path d="M20 40C31.0457 40 40 31.0457 40 20C40 8.9543 31.0457 0 20 0C8.9543 0 0 8.9543 0 20C0 31.0457 8.9543 40 20 40Z" fill="#0500FF"/>
-                <path d="M20 8L10 14V20C10 26.6274 14.4772 32.3497 20 34C25.5228 32.3497 30 26.6274 30 20V14L20 8Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              </svg>
-            )}
-            <span className="text-xs">Trust</span>
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={handleConnectBitgetWallet}
-            disabled={loading || wagmiPending}
-            className="flex flex-col items-center gap-1 h-auto py-3"
-          >
-            {wagmiPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <svg className="h-6 w-6" viewBox="0 0 40 40" fill="none">
-                <rect width="40" height="40" rx="8" fill="#00C8B3"/>
-                <path d="M12 14L20 10L28 14V20C28 26 24 30 20 32C16 30 12 26 12 20V14Z" fill="white"/>
-              </svg>
-            )}
-            <span className="text-xs">Bitget</span>
-          </Button>
-        </div>
-
-        {/* Full Web3 Modal Button */}
-        <Button
-          variant="default"
-          onClick={() => setShowConnectWallet(true)}
-          className="w-full gap-2 gradient-primary text-white"
-        >
-          <Wallet className="h-5 w-5" />
-          Xem tất cả ví Web3
-        </Button>
-
-                <p className="text-center text-xs text-muted-foreground">
-                  Ví Web3 phổ biến để kết nối nhanh. Mở popup để xem thêm tùy chọn và tạo ví thông minh.
-                </p>
-
-        {/* TODO: Future expansion placeholders */}
-        {/* Apple login: signInWithApple() */}
-        {/* Twitter/X login: signInWithTwitter() */}
-        {/* Multi-network EVM: BSC, Polygon, Base, Ethereum */}
       </Card>
-
-      <ConnectWalletModal 
-        open={showConnectWallet} 
-        onOpenChange={setShowConnectWallet}
-      />
     </div>
   );
 }
