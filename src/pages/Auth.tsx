@@ -612,9 +612,9 @@ export default function Auth() {
           Xem tất cả ví Web3
         </Button>
 
-        <p className="text-center text-xs text-muted-foreground">
-          Kết nối ví để tự động tạo ERC-4337 smart wallet với gas miễn phí
-        </p>
+                <p className="text-center text-xs text-muted-foreground">
+                  Ví Web3 phổ biến để kết nối nhanh. Mở popup để xem thêm tùy chọn và tạo ví thông minh.
+                </p>
 
         {/* TODO: Future expansion placeholders */}
         {/* Apple login: signInWithApple() */}

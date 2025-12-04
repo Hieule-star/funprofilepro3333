@@ -32,8 +32,10 @@ export const privyConfig = {
     },
     loginMethods: ['email', 'google', 'farcaster', 'telegram'],
     // Embedded wallet config for ERC-4337
+    // IMPORTANT: 'off' = Smart wallet chỉ tạo khi user chủ động chọn trong Popup Wallet
+    // KHÔNG tự động tạo khi đăng nhập
     embeddedWallets: {
-      createOnLogin: 'users-without-wallets' as const,
+      createOnLogin: 'off' as const,
       requireUserPasswordOnCreate: false,
     },
     // External wallet options
