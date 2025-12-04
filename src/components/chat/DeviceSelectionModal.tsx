@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Video, Mic, VideoOff } from "lucide-react";
+import { Video, Mic, VideoOff, MicOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface DeviceSelectionModalProps {
@@ -11,13 +11,15 @@ interface DeviceSelectionModalProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: (devices: { videoDeviceId: string; audioDeviceId: string }) => void;
   targetUsername: string;
+  mode?: 'video' | 'audio';
 }
 
 export default function DeviceSelectionModal({
   open,
   onOpenChange,
   onConfirm,
-  targetUsername
+  targetUsername,
+  mode = 'video'
 }: DeviceSelectionModalProps) {
   const { toast } = useToast();
   const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([]);
@@ -27,6 +29,26 @@ export default function DeviceSelectionModal({
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const [loading, setLoading] = useState(true);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
+
+  // Get detailed error message based on error type
+  const getErrorMessage = (error: any): string => {
+    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+      return "Quyền truy cập đã bị từ chối. Vui lòng cho phép trong cài đặt trình duyệt (click biểu tượng ổ khóa bên cạnh URL).";
+    } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+      return mode === 'video' 
+        ? "Không tìm thấy camera hoặc microphone trên thiết bị này."
+        : "Không tìm thấy microphone trên thiết bị này.";
+    } else if (error.name === 'NotReadableError' || error.name === 'TrackStartError') {
+      return "Thiết bị đang được sử dụng bởi ứng dụng khác. Vui lòng đóng các ứng dụng khác đang sử dụng camera/mic.";
+    } else if (error.name === 'OverconstrainedError') {
+      return "Thiết bị không đáp ứng được yêu cầu kỹ thuật.";
+    } else if (error.name === 'SecurityError') {
+      return "Truy cập bị chặn do chính sách bảo mật. Vui lòng sử dụng HTTPS.";
+    } else if (error.name === 'AbortError') {
+      return "Yêu cầu truy cập thiết bị đã bị hủy.";
+    }
+    return `Không thể truy cập thiết bị: ${error.message || 'Lỗi không xác định'}`;
+  };
 
   useEffect(() => {
     if (!open) {
@@ -42,16 +64,22 @@ export default function DeviceSelectionModal({
       try {
         setLoading(true);
         
-        // Request permissions first
-        const stream = await navigator.mediaDevices.getUserMedia({ 
-          video: true, 
-          audio: true 
-        });
+        // Request permissions based on mode
+        const constraints: MediaStreamConstraints = {
+          audio: true,
+          video: mode === 'video'
+        };
+        
+        console.log('[DeviceSelection] Requesting media with constraints:', constraints);
+        
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         
         // Get devices
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoInputs = devices.filter(device => device.kind === 'videoinput');
         const audioInputs = devices.filter(device => device.kind === 'audioinput');
+        
+        console.log('[DeviceSelection] Found devices:', { videoInputs: videoInputs.length, audioInputs: audioInputs.length });
         
         setVideoDevices(videoInputs);
         setAudioDevices(audioInputs);
@@ -66,16 +94,19 @@ export default function DeviceSelectionModal({
         
         // Use first stream for preview
         setPreviewStream(stream);
-        if (videoPreviewRef.current) {
+        if (videoPreviewRef.current && mode === 'video') {
           videoPreviewRef.current.srcObject = stream;
         }
         
         setLoading(false);
-      } catch (error) {
-        console.error('Error loading devices:', error);
+      } catch (error: any) {
+        console.error('[DeviceSelection] Error loading devices:', error);
+        
+        const errorMessage = getErrorMessage(error);
+        
         toast({
           title: "Lỗi truy cập thiết bị",
-          description: "Không thể truy cập camera hoặc microphone. Vui lòng kiểm tra quyền truy cập.",
+          description: errorMessage,
           variant: "destructive"
         });
         setLoading(false);
@@ -84,11 +115,12 @@ export default function DeviceSelectionModal({
     };
 
     loadDevices();
-  }, [open, toast, onOpenChange]);
+  }, [open, toast, onOpenChange, mode]);
 
-  // Update preview when video device changes
+  // Update preview when video device changes (only for video mode)
   useEffect(() => {
-    if (!selectedVideoDevice || !open) return;
+    if (!open || mode !== 'video') return;
+    if (!selectedVideoDevice && !selectedAudioDevice) return;
 
     const updatePreview = async () => {
       try {
@@ -98,28 +130,40 @@ export default function DeviceSelectionModal({
         }
 
         // Start new stream with selected device
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: selectedVideoDevice } },
-          audio: { deviceId: { exact: selectedAudioDevice } }
-        });
+        const constraints: MediaStreamConstraints = {
+          audio: selectedAudioDevice ? { deviceId: { exact: selectedAudioDevice } } : true,
+          video: mode === 'video' && selectedVideoDevice ? { deviceId: { exact: selectedVideoDevice } } : false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
         setPreviewStream(stream);
         if (videoPreviewRef.current) {
           videoPreviewRef.current.srcObject = stream;
         }
       } catch (error) {
-        console.error('Error updating preview:', error);
+        console.error('[DeviceSelection] Error updating preview:', error);
       }
     };
 
     updatePreview();
-  }, [selectedVideoDevice, selectedAudioDevice, open]);
+  }, [selectedVideoDevice, selectedAudioDevice, open, mode]);
 
   const handleConfirm = () => {
-    if (!selectedVideoDevice || !selectedAudioDevice) {
+    // For audio mode, only check audio device
+    if (mode === 'video' && !selectedVideoDevice) {
       toast({
         title: "Vui lòng chọn thiết bị",
-        description: "Bạn cần chọn cả camera và microphone",
+        description: "Bạn cần chọn camera",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!selectedAudioDevice) {
+      toast({
+        title: "Vui lòng chọn thiết bị",
+        description: "Bạn cần chọn microphone",
         variant: "destructive"
       });
       return;
@@ -132,7 +176,7 @@ export default function DeviceSelectionModal({
     }
 
     onConfirm({
-      videoDeviceId: selectedVideoDevice,
+      videoDeviceId: selectedVideoDevice || "",
       audioDeviceId: selectedAudioDevice
     });
   };
@@ -150,53 +194,67 @@ export default function DeviceSelectionModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Chuẩn bị gọi video cho {targetUsername}</DialogTitle>
+          <DialogTitle>
+            {mode === 'video' ? 'Chuẩn bị gọi video' : 'Chuẩn bị gọi thoại'} cho {targetUsername}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
-          {/* Video Preview */}
-          <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
-            {loading ? (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <VideoOff className="h-12 w-12 text-gray-500" />
+          {/* Video Preview - only show for video mode */}
+          {mode === 'video' && (
+            <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
+              {loading ? (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <VideoOff className="h-12 w-12 text-gray-500" />
+                </div>
+              ) : (
+                <video
+                  ref={videoPreviewRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+              )}
+              <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
+                <p className="text-white text-sm">Xem trước camera</p>
               </div>
-            ) : (
-              <video
-                ref={videoPreviewRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover"
-              />
-            )}
-            <div className="absolute bottom-4 left-4 bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full">
-              <p className="text-white text-sm">Xem trước camera</p>
             </div>
-          </div>
+          )}
 
-          {/* Camera Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="camera" className="flex items-center gap-2">
-              <Video className="h-4 w-4" />
-              Camera
-            </Label>
-            <Select
-              value={selectedVideoDevice}
-              onValueChange={setSelectedVideoDevice}
-              disabled={loading}
-            >
-              <SelectTrigger id="camera">
-                <SelectValue placeholder="Chọn camera" />
-              </SelectTrigger>
-              <SelectContent>
-                {videoDevices.map(device => (
-                  <SelectItem key={device.deviceId} value={device.deviceId}>
-                    {device.label || `Camera ${device.deviceId.substring(0, 8)}`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Audio-only mode indicator */}
+          {mode === 'audio' && (
+            <div className="flex flex-col items-center justify-center py-8 bg-muted rounded-lg">
+              <Mic className="h-16 w-16 text-primary mb-4" />
+              <p className="text-muted-foreground">Cuộc gọi thoại - Chỉ sử dụng microphone</p>
+            </div>
+          )}
+
+          {/* Camera Selection - only show for video mode */}
+          {mode === 'video' && (
+            <div className="space-y-2">
+              <Label htmlFor="camera" className="flex items-center gap-2">
+                <Video className="h-4 w-4" />
+                Camera
+              </Label>
+              <Select
+                value={selectedVideoDevice}
+                onValueChange={setSelectedVideoDevice}
+                disabled={loading}
+              >
+                <SelectTrigger id="camera">
+                  <SelectValue placeholder="Chọn camera" />
+                </SelectTrigger>
+                <SelectContent>
+                  {videoDevices.map(device => (
+                    <SelectItem key={device.deviceId} value={device.deviceId}>
+                      {device.label || `Camera ${device.deviceId.substring(0, 8)}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Microphone Selection */}
           <div className="space-y-2">
@@ -232,7 +290,7 @@ export default function DeviceSelectionModal({
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={loading || !selectedVideoDevice || !selectedAudioDevice}
+            disabled={loading || (mode === 'video' && !selectedVideoDevice) || !selectedAudioDevice}
             className="bg-green-600 hover:bg-green-700"
           >
             Bắt đầu cuộc gọi
