@@ -183,7 +183,11 @@ export default function AgoraVideoCallModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden">
+      <DialogContent 
+        className="max-w-4xl h-[80vh] p-0 overflow-hidden [&>button]:hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <div className="relative w-full h-full bg-gradient-to-br from-gray-900 to-gray-800">
           {mode === 'video' ? (
             <>
