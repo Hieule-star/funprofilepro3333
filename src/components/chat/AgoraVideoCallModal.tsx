@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, User } from "lucide-react";
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, User, AlertCircle, CheckCircle2, Wifi } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAgoraCall } from "@/hooks/useAgoraCall";
 
@@ -15,6 +15,8 @@ interface AgoraVideoCallModalProps {
   selectedAudioDeviceId?: string;
 }
 
+type CallStatus = 'connecting' | 'waiting' | 'connected' | 'failed' | 'ended';
+
 export default function AgoraVideoCallModal({
   open,
   onOpenChange,
@@ -26,11 +28,13 @@ export default function AgoraVideoCallModal({
 }: AgoraVideoCallModalProps) {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
-  const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'ended'>('connecting');
+  const [callStatus, setCallStatus] = useState<CallStatus>('connecting');
+  const [connectionTime, setConnectionTime] = useState(0);
   
   // Track if we've already joined to prevent double-joining
   const hasJoinedRef = useRef(false);
   const isJoiningRef = useRef(false);
+  const connectionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     localVideoRef,
@@ -43,6 +47,25 @@ export default function AgoraVideoCallModal({
     remoteUsers,
   } = useAgoraCall();
 
+  // Connection timer to track waiting time
+  useEffect(() => {
+    if (callStatus === 'waiting') {
+      connectionTimerRef.current = setInterval(() => {
+        setConnectionTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      if (connectionTimerRef.current) {
+        clearInterval(connectionTimerRef.current);
+        connectionTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (connectionTimerRef.current) {
+        clearInterval(connectionTimerRef.current);
+      }
+    };
+  }, [callStatus]);
+
   // Join channel when modal opens
   useEffect(() => {
     if (open && !hasJoinedRef.current && !isJoiningRef.current) {
@@ -51,21 +74,23 @@ export default function AgoraVideoCallModal({
       console.log('[AgoraModal] Devices - video:', selectedVideoDeviceId, 'audio:', selectedAudioDeviceId);
       
       setCallStatus('connecting');
+      setConnectionTime(0);
       isJoiningRef.current = true;
       
       joinChannel(channelName, mode, selectedVideoDeviceId, selectedAudioDeviceId)
         .then(() => {
-          console.log('[AgoraModal] Joined successfully');
+          console.log('[AgoraModal] Joined successfully, waiting for remote user');
           hasJoinedRef.current = true;
           isJoiningRef.current = false;
+          setCallStatus('waiting'); // Waiting for the other user to join
         })
         .catch((error) => {
           console.error('[AgoraModal] Join failed:', error);
           isJoiningRef.current = false;
-          onOpenChange(false);
+          setCallStatus('failed');
         });
     }
-  }, [open, conversationId, mode, selectedVideoDeviceId, selectedAudioDeviceId, joinChannel, onOpenChange]);
+  }, [open, conversationId, mode, selectedVideoDeviceId, selectedAudioDeviceId, joinChannel]);
 
   // Cleanup when component unmounts
   useEffect(() => {
@@ -87,6 +112,56 @@ export default function AgoraVideoCallModal({
       setCallStatus('connected');
     }
   }, [remoteUsers]);
+
+  // Format connection time
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Get status indicator config
+  const getStatusConfig = () => {
+    switch (callStatus) {
+      case 'connecting':
+        return {
+          icon: <Loader2 className="h-4 w-4 text-yellow-400 animate-spin" />,
+          text: 'Đang kết nối...',
+          bgColor: 'bg-yellow-500/20 border-yellow-500/30',
+          textColor: 'text-yellow-400'
+        };
+      case 'waiting':
+        return {
+          icon: <Wifi className="h-4 w-4 text-blue-400 animate-pulse" />,
+          text: `Chờ ${targetUsername} tham gia...`,
+          bgColor: 'bg-blue-500/20 border-blue-500/30',
+          textColor: 'text-blue-400'
+        };
+      case 'connected':
+        return {
+          icon: <CheckCircle2 className="h-4 w-4 text-green-400" />,
+          text: `Đã kết nối • ${formatTime(connectionTime)}`,
+          bgColor: 'bg-green-500/20 border-green-500/30',
+          textColor: 'text-green-400'
+        };
+      case 'failed':
+        return {
+          icon: <AlertCircle className="h-4 w-4 text-red-400" />,
+          text: 'Kết nối thất bại',
+          bgColor: 'bg-red-500/20 border-red-500/30',
+          textColor: 'text-red-400'
+        };
+      case 'ended':
+        return {
+          icon: <PhoneOff className="h-4 w-4 text-gray-400" />,
+          text: 'Cuộc gọi đã kết thúc',
+          bgColor: 'bg-gray-500/20 border-gray-500/30',
+          textColor: 'text-gray-400'
+        };
+    }
+  };
+
+  const statusConfig = getStatusConfig();
 
   const handleToggleAudio = () => {
     const newState = !audioEnabled;
@@ -145,19 +220,28 @@ export default function AgoraVideoCallModal({
           )}
 
           {/* Status indicator */}
-          <div className="absolute top-4 left-4 bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
-            {callStatus === 'connecting' && (
-              <Loader2 className="h-4 w-4 text-white animate-spin" />
-            )}
-            {callStatus === 'connected' && (
-              <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            )}
-            <p className="text-white text-sm font-medium">
-              {callStatus === 'connecting' && `Đang kết nối với ${targetUsername}...`}
-              {callStatus === 'connected' && `Đang gọi ${targetUsername}`}
-              {callStatus === 'ended' && 'Cuộc gọi đã kết thúc'}
+          <div className={`absolute top-4 left-4 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2 border ${statusConfig.bgColor}`}>
+            {statusConfig.icon}
+            <p className={`text-sm font-medium ${statusConfig.textColor}`}>
+              {statusConfig.text}
             </p>
           </div>
+
+          {/* Failed state retry button */}
+          {callStatus === 'failed' && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center space-y-4">
+              <AlertCircle className="h-16 w-16 text-red-400 mx-auto" />
+              <p className="text-white text-lg">Không thể kết nối cuộc gọi</p>
+              <p className="text-gray-400 text-sm">Vui lòng kiểm tra kết nối mạng và thử lại</p>
+              <Button 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                className="mt-4"
+              >
+                Đóng
+              </Button>
+            </div>
+          )}
 
           {/* Debug info */}
           <div className="absolute bottom-24 left-4 bg-black/70 backdrop-blur-sm px-3 py-2 rounded-lg text-xs font-mono space-y-1">
