@@ -219,8 +219,49 @@ export default function Chat() {
     }
   }, [isCaller, callAccepted, callRejected, pendingCallTarget, toast]);
 
-  const handleVideoCall = () => {
+  // Check permissions before opening device modal
+  const checkMediaPermissions = async (mode: 'video' | 'audio'): Promise<boolean> => {
+    try {
+      // Check microphone permission (required for both modes)
+      const micPermission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      
+      if (micPermission.state === 'denied') {
+        toast({
+          title: "Quyền microphone bị chặn",
+          description: "Vui lòng cho phép truy cập microphone trong cài đặt trình duyệt (click biểu tượng ổ khóa bên cạnh URL)",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      // Check camera permission only for video mode
+      if (mode === 'video') {
+        const cameraPermission = await navigator.permissions.query({ name: 'camera' as PermissionName });
+        
+        if (cameraPermission.state === 'denied') {
+          toast({
+            title: "Quyền camera bị chặn",
+            description: "Vui lòng cho phép truy cập camera trong cài đặt trình duyệt (click biểu tượng ổ khóa bên cạnh URL)",
+            variant: "destructive"
+          });
+          return false;
+        }
+      }
+
+      return true;
+    } catch (error) {
+      // Permissions API not supported, let the device modal handle it
+      console.log('[Chat] Permissions API not supported, proceeding to device selection');
+      return true;
+    }
+  };
+
+  const handleVideoCall = async () => {
     if (!selectedConversation || !profile || !user) return;
+    
+    // Check permissions first
+    const hasPermissions = await checkMediaPermissions('video');
+    if (!hasPermissions) return;
     
     setCallMode('video');
     
@@ -249,8 +290,12 @@ export default function Chat() {
     setDeviceSelectionOpen(true);
   };
 
-  const handleVoiceCall = () => {
+  const handleVoiceCall = async () => {
     if (!selectedConversation || !profile || !user) return;
+    
+    // Check permissions first
+    const hasPermissions = await checkMediaPermissions('audio');
+    if (!hasPermissions) return;
     
     setCallMode('audio');
     
