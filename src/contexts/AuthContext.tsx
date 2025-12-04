@@ -18,6 +18,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signInWithGoogle: () => Promise<{ error: any }>;
   signInWithFacebook: () => Promise<{ error: any }>;
+  signInWithTelegram: () => Promise<{ error: any }>;
+  resendEmailVerification: (email: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -149,6 +151,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  // Note: Telegram OAuth is not natively supported by Supabase
+  // This will attempt to use it, but may require Privy integration instead
+  const signInWithTelegram = async () => {
+    // Supabase doesn't have native Telegram support
+    // Return error to indicate user should use Privy for Telegram login
+    return { 
+      error: { 
+        message: "Telegram login requires Privy integration. Please use the Web3 wallet modal for Telegram login." 
+      } 
+    };
+  };
+
+  const resendEmailVerification = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    });
+    return { error };
+  };
+
+  // TODO: Future expansion - Apple login
+  // const signInWithApple = async () => { ... }
+
+  // TODO: Future expansion - Twitter/X login
+  // const signInWithTwitter = async () => { ... }
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
@@ -165,6 +193,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signInWithGoogle,
         signInWithFacebook,
+        signInWithTelegram,
+        resendEmailVerification,
         signOut,
       }}
     >
