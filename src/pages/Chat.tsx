@@ -370,6 +370,7 @@ export default function Chat() {
           onOpenChange={setDeviceSelectionOpen}
           onConfirm={handleDeviceConfirm}
           targetUsername={pendingCallTarget.username}
+          mode={callMode}
         />
       )}
 
@@ -407,6 +408,7 @@ export default function Chat() {
           }}
           onConfirm={handleCalleeDeviceConfirm}
           targetUsername={pendingCalleeCall.callerName}
+          mode={callMode}
         />
       )}
 
