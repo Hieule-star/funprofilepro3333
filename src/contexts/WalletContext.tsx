@@ -1,8 +1,10 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { useAccount, useBalance, useDisconnect, useSwitchChain } from 'wagmi';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { usePrivy } from '@privy-io/react-auth';
+import { isPrivyConfigured } from '@/lib/privy-config';
 
 export interface CustomToken {
   id: string;
@@ -37,6 +39,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const { switchChain } = useSwitchChain();
   const [isSaved, setIsSaved] = useState(false);
   const [customTokens, setCustomTokens] = useState<CustomToken[]>([]);
+  
+  // Track previous user state to detect logout
+  const prevUserRef = useRef(user);
+  
+  // Get Privy logout function if enabled
+  const privyEnabled = isPrivyConfigured();
+  const { logout: privyLogout } = usePrivy();
+
+  // Auto-disconnect wallet when user logs out
+  useEffect(() => {
+    // Detect when user changes from logged-in to logged-out
+    if (prevUserRef.current && !user) {
+      console.log('[WalletContext] User logged out - disconnecting wallet');
+      
+      // Disconnect wagmi (EOA wallets: MetaMask, Trust, Bitget)
+      wagmiDisconnect();
+      
+      // Logout from Privy (Smart Wallet) if enabled
+      if (privyEnabled && privyLogout) {
+        privyLogout().catch(err => {
+          console.error('[WalletContext] Privy logout error:', err);
+        });
+      }
+      
+      // Reset local state
+      setIsSaved(false);
+      setCustomTokens([]);
+    }
+    
+    // Update ref for next comparison
+    prevUserRef.current = user;
+  }, [user, privyEnabled, privyLogout, wagmiDisconnect]);
 
   // Save wallet address to Supabase when connected
   const saveWalletAddress = async () => {
