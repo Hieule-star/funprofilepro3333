@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, User } from "lucide-react";
@@ -27,6 +27,10 @@ export default function AgoraVideoCallModal({
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [callStatus, setCallStatus] = useState<'connecting' | 'connected' | 'ended'>('connecting');
+  
+  // Track if we've already joined to prevent double-joining
+  const hasJoinedRef = useRef(false);
+  const isJoiningRef = useRef(false);
 
   const {
     localVideoRef,
@@ -41,30 +45,44 @@ export default function AgoraVideoCallModal({
 
   // Join channel when modal opens
   useEffect(() => {
-    if (open) {
+    if (open && !hasJoinedRef.current && !isJoiningRef.current) {
       const channelName = `call-${conversationId}`;
+      console.log('[AgoraModal] Attempting to join channel:', channelName);
+      console.log('[AgoraModal] Devices - video:', selectedVideoDeviceId, 'audio:', selectedAudioDeviceId);
+      
       setCallStatus('connecting');
+      isJoiningRef.current = true;
       
       joinChannel(channelName, mode, selectedVideoDeviceId, selectedAudioDeviceId)
         .then(() => {
           console.log('[AgoraModal] Joined successfully');
+          hasJoinedRef.current = true;
+          isJoiningRef.current = false;
         })
         .catch((error) => {
           console.error('[AgoraModal] Join failed:', error);
+          isJoiningRef.current = false;
           onOpenChange(false);
         });
     }
+  }, [open, conversationId, mode, selectedVideoDeviceId, selectedAudioDeviceId, joinChannel, onOpenChange]);
 
+  // Cleanup when modal closes
+  useEffect(() => {
     return () => {
-      if (open) {
+      if (hasJoinedRef.current) {
+        console.log('[AgoraModal] Cleanup: leaving channel');
         leaveChannel();
+        hasJoinedRef.current = false;
+        isJoiningRef.current = false;
       }
     };
-  }, [open, conversationId, mode, selectedVideoDeviceId, selectedAudioDeviceId]);
+  }, [leaveChannel]);
 
   // Update status when remote user joins
   useEffect(() => {
     if (remoteUsers.length > 0) {
+      console.log('[AgoraModal] Remote user joined, status -> connected');
       setCallStatus('connected');
     }
   }, [remoteUsers]);

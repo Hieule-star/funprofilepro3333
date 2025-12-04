@@ -22,6 +22,16 @@ export function IncomingCallProvider({ children }: IncomingCallProviderProps) {
   const handleAcceptCall = () => {
     if (!incomingCall) return;
     
+    console.log('[IncomingCallProvider] Accepting call from:', incomingCall.callerId);
+    console.log('[IncomingCallProvider] Call info:', incomingCall);
+    
+    // Store call info in sessionStorage for Chat.tsx to pick up
+    sessionStorage.setItem('pendingCallInfo', JSON.stringify({
+      conversationId: incomingCall.conversationId,
+      callerName: incomingCall.callerName,
+      callerAvatar: incomingCall.callerAvatar
+    }));
+    
     acceptCall(incomingCall.callerId);
     
     toast({
@@ -31,6 +41,7 @@ export function IncomingCallProvider({ children }: IncomingCallProviderProps) {
     
     // Navigate to chat page if not already there
     if (window.location.pathname !== '/chat') {
+      console.log('[IncomingCallProvider] Navigating to /chat');
       navigate('/chat');
     }
   };

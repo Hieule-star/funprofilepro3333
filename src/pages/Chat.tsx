@@ -33,6 +33,13 @@ export default function Chat() {
     username: string;
   } | null>(null);
   
+  // NEW: State for callee device selection
+  const [calleeDeviceModalOpen, setCalleeDeviceModalOpen] = useState(false);
+  const [pendingCalleeCall, setPendingCalleeCall] = useState<{
+    conversationId: string;
+    callerName: string;
+  } | null>(null);
+  
   const { typingUsers, setTyping } = useTypingIndicator(
     selectedConversation?.id,
     user?.id
@@ -160,14 +167,26 @@ export default function Chat() {
     }
   }, [callAccepted]);
 
-  // Handle call acceptance - open video modal for CALLEE
+  // Handle call acceptance - open device selection for CALLEE first
   useEffect(() => {
     if (activeCallAsCallee) {
-      console.log('[Chat] Callee: activeCallAsCallee detected, opening VideoCallModal');
-      setVideoCallOpen(true);
-      setIsCaller(false); // Ensure callee knows they're not the caller
+      console.log('[Chat] Callee: activeCallAsCallee detected, opening DeviceSelectionModal first');
+      setIsCaller(false);
+      setPendingCalleeCall({
+        conversationId: activeCallAsCallee.conversationId,
+        callerName: activeCallAsCallee.callerName || "Người gọi"
+      });
+      setCalleeDeviceModalOpen(true);
     }
   }, [activeCallAsCallee]);
+
+  // Handler for callee device confirmation
+  const handleCalleeDeviceConfirm = (devices: { videoDeviceId: string; audioDeviceId: string }) => {
+    console.log('[Chat] Callee: Device selection confirmed, opening VideoCallModal');
+    setSelectedDevices(devices);
+    setCalleeDeviceModalOpen(false);
+    setVideoCallOpen(true);
+  };
 
   // Handle call rejection
   useEffect(() => {
@@ -374,7 +393,24 @@ export default function Chat() {
         />
       )}
 
-      {videoCallOpen && (callAccepted || activeCallAsCallee) && (
+      {/* Device selection modal for CALLEE */}
+      {calleeDeviceModalOpen && pendingCalleeCall && (
+        <DeviceSelectionModal
+          open={calleeDeviceModalOpen}
+          onOpenChange={(open) => {
+            setCalleeDeviceModalOpen(open);
+            if (!open) {
+              // If closed without confirming, clear the pending call
+              setPendingCalleeCall(null);
+              clearActiveCall();
+            }
+          }}
+          onConfirm={handleCalleeDeviceConfirm}
+          targetUsername={pendingCalleeCall.callerName}
+        />
+      )}
+
+      {videoCallOpen && (callAccepted || activeCallAsCallee) && selectedDevices && (
         <AgoraVideoCallModal
           open={videoCallOpen}
           onOpenChange={(open) => {
@@ -382,22 +418,23 @@ export default function Chat() {
             if (!open) {
               setIsCaller(false);
               setSelectedDevices(null);
+              setPendingCalleeCall(null);
               clearActiveCall();
             }
           }}
           conversationId={
             isCaller 
               ? selectedConversation?.id || ""
-              : activeCallAsCallee?.conversationId || ""
+              : pendingCalleeCall?.conversationId || activeCallAsCallee?.conversationId || ""
           }
           targetUsername={
             isCaller
               ? selectedConversation?.participants.find((p: any) => p.user_id !== user?.id)?.profiles?.username || ""
-              : "Người gọi"
+              : pendingCalleeCall?.callerName || "Người gọi"
           }
           mode={callMode}
-          selectedVideoDeviceId={selectedDevices?.videoDeviceId}
-          selectedAudioDeviceId={selectedDevices?.audioDeviceId}
+          selectedVideoDeviceId={selectedDevices.videoDeviceId}
+          selectedAudioDeviceId={selectedDevices.audioDeviceId}
         />
       )}
     </div>

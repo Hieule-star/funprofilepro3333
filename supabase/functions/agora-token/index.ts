@@ -136,16 +136,25 @@ serve(async (req) => {
   }
 
   try {
-    const { channelName, uid } = await req.json();
+    const body = await req.json();
+    const { channelName, uid } = body;
+    
+    // Validate input
+    if (!channelName || typeof channelName !== 'string') {
+      console.error('[agora-token] Invalid channelName:', channelName);
+      throw new Error('Invalid or missing channelName');
+    }
     
     const appId = Deno.env.get("AGORA_APP_ID");
     const appCertificate = Deno.env.get("AGORA_APP_CERTIFICATE");
     
     if (!appId || !appCertificate) {
+      console.error('[agora-token] Missing credentials - appId:', !!appId, 'appCert:', !!appCertificate);
       throw new Error('Missing Agora credentials');
     }
 
-    console.log(`[agora-token] Generating token for channel: ${channelName}, uid: ${uid || 0}`);
+    console.log(`[agora-token] Request - channel: ${channelName}, uid: ${uid || 0}`);
+    console.log(`[agora-token] AppId length: ${appId.length}, AppCert length: ${appCertificate.length}`);
     
     const expirationTimeInSeconds = 3600;
     const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -160,7 +169,7 @@ serve(async (req) => {
       privilegeExpiredTs
     );
 
-    console.log(`[agora-token] Token generated successfully for channel: ${channelName}`);
+    console.log(`[agora-token] Token generated - length: ${token.length}, prefix: ${token.substring(0, 10)}...`);
     
     return new Response(JSON.stringify({ token, appId }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
