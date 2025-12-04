@@ -35,19 +35,21 @@ export default function ConnectWalletModal({ open, onOpenChange }: ConnectWallet
     user = privyAuth.user;
   }
 
-  // Close modal when Smart Wallet created via Privy
+  // Track previous states to detect NEW connections/authentications only
+  const prevConnected = useRef(wagmiConnected);
+  const prevAuthenticated = useRef(authenticated);
+
+  // Close modal only when NEW Smart Wallet created via Privy (false → true)
   useEffect(() => {
-    if (privyEnabled && authenticated && user) {
+    if (privyEnabled && authenticated && !prevAuthenticated.current && user && open) {
       toast({
         title: "Ví thông minh đã được tạo!",
         description: `Chào mừng ${user.email?.address || user.google?.email || 'bạn'}`,
       });
       onOpenChange(false);
     }
-  }, [authenticated, user, privyEnabled]);
-
-  // Track previous connection state to detect NEW connections only
-  const prevConnected = useRef(wagmiConnected);
+    prevAuthenticated.current = authenticated;
+  }, [authenticated, user, privyEnabled, open]);
 
   // Close modal only when a NEW connection is established (false → true)
   useEffect(() => {
