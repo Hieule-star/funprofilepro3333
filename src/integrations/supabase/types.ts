@@ -297,6 +297,42 @@ export type Database = {
           },
         ]
       }
+      followers: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followers_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followers_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       friendships: {
         Row: {
           created_at: string
@@ -646,25 +682,55 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          badges: Json | null
           bio: string | null
+          cover_url: string | null
           created_at: string
           id: string
+          job_title: string | null
+          location: string | null
+          reputation_score: number | null
+          social_facebook: string | null
+          social_instagram: string | null
+          social_tiktok: string | null
+          social_twitter: string | null
+          social_website: string | null
           updated_at: string
           username: string
         }
         Insert: {
           avatar_url?: string | null
+          badges?: Json | null
           bio?: string | null
+          cover_url?: string | null
           created_at?: string
           id: string
+          job_title?: string | null
+          location?: string | null
+          reputation_score?: number | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          social_tiktok?: string | null
+          social_twitter?: string | null
+          social_website?: string | null
           updated_at?: string
           username: string
         }
         Update: {
           avatar_url?: string | null
+          badges?: Json | null
           bio?: string | null
+          cover_url?: string | null
           created_at?: string
           id?: string
+          job_title?: string | null
+          location?: string | null
+          reputation_score?: number | null
+          social_facebook?: string | null
+          social_instagram?: string | null
+          social_tiktok?: string | null
+          social_twitter?: string | null
+          social_website?: string | null
           updated_at?: string
           username?: string
         }
