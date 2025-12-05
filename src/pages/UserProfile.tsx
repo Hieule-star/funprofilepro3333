@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { 
   TrendingUp, 
   Award, 
@@ -13,7 +14,9 @@ import {
   UserPlus,
   Activity,
   LayoutGrid,
-  Coins
+  Coins,
+  Video,
+  Phone
 } from "lucide-react";
 import Post from "@/components/Post";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
@@ -248,6 +251,29 @@ export default function UserProfile() {
             onEditClick={() => {}}
             onCoverEditClick={() => {}}
           />
+
+          {/* Call Button */}
+          <Card className="border-primary/20">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  onClick={() => navigate(`/call?channel=user-${userId}`)}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  <Video className="h-4 w-4 mr-2" />
+                  Gọi Video
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/call?channel=user-${userId}`)}
+                  className="border-primary text-primary hover:bg-primary/10"
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Gọi Thoại
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Reputation Bar */}
           <Card className="border-primary/20">
