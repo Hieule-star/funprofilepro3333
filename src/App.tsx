@@ -34,6 +34,7 @@ import ClaimHistory from "./pages/ClaimHistory";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
+import Call from "./pages/Call";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -144,6 +145,14 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/call"
+              element={
+                <ProtectedRoute>
+                  <Call />
+                </ProtectedRoute>
+              }
+            />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                   <Route path="*" element={<NotFound />} />
                         </Routes>
@@ -247,13 +256,21 @@ const App = () => {
                        }
                      />
                      <Route
-                       path="/admin"
-                       element={
-                         <ProtectedRoute>
-                           <Admin />
-                         </ProtectedRoute>
-                       }
-                     />
+                        path="/admin"
+                        element={
+                          <ProtectedRoute>
+                            <Admin />
+                          </ProtectedRoute>
+                        }
+                      />
+                     <Route
+                        path="/call"
+                        element={
+                          <ProtectedRoute>
+                            <Call />
+                          </ProtectedRoute>
+                        }
+                      />
                        <Route path="*" element={<NotFound />} />
                       </Routes>
                         </WalletProvider>
