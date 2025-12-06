@@ -110,35 +110,18 @@ export function useAgora({ client }: UseAgoraOptions): UseAgoraReturn {
         const channel = channelName || "funprofile-test";
         console.log("[Agora] Joining channel:", channel);
 
-        // Get token from Edge Function
-        console.log("[Agora] Fetching token from Edge Function...");
-        const { data, error: tokenError } = await supabase.functions.invoke("agora-token", {
-          body: { channelName: channel, uid: uid || 0 },
-        });
+        // Use Temp Token directly (bypass Edge Function for now)
+        const appId = import.meta.env.VITE_AGORA_APP_ID || "00cfc73e8ca747d595b9324082d929a1";
+        const tempToken = import.meta.env.VITE_AGORA_TEMP_TOKEN || "007eJxTYAg4s3R5Xr6oZ+L2zOlSXsacfDe6WBLqDX7Z/T3w4995L2sFBgOD5LRkc+NUi+REcxPzFFNL0yRLYyMTAwujFEsjy0RD1yLjzIZARoYLNwMZGKEQxOdnSCvNKyjKT8vMSdUtSS0uYWAAAHJ7IvE=";
+        const agoraToken = token || tempToken;
 
-        if (tokenError) {
-          console.error("[Agora] Token error:", tokenError);
-          throw new Error(`Không thể lấy token: ${tokenError.message}`);
-        }
-
-        const agoraToken = token || data.token;
-        const appId = data.appId;
-
-        // ===== DEBUG LOGGING (theo hướng dẫn của cha) =====
+        // ===== DEBUG LOGGING =====
         console.log("[Agora] ===== DEBUG INFO =====");
+        console.log("[Agora] Using TEMP TOKEN (bypass Edge Function)");
         console.log("[Agora] AGORA APP_ID =", appId);
-        console.log("[Agora] AGORA APP_ID length =", appId?.length);
-        console.log("[Agora] AGORA TOKEN =", agoraToken?.substring(0, 50) + "...");
+        console.log("[Agora] AGORA TOKEN =", agoraToken?.substring(0, 30) + "...");
         console.log("[Agora] AGORA CHANNEL =", channel);
         console.log("[Agora] ===== END DEBUG =====");
-
-        if (!appId || appId.length !== 32) {
-          throw new Error(`App ID không hợp lệ: ${appId}. Vui lòng kiểm tra AGORA_APP_ID trong Supabase secrets.`);
-        }
-
-        if (!agoraToken) {
-          throw new Error("Token không hợp lệ. Vui lòng kiểm tra AGORA_APP_CERTIFICATE trong Supabase secrets.");
-        }
 
         // Join the channel
         console.log("[Agora] Calling client.join with appId:", appId.substring(0, 8) + "...");
