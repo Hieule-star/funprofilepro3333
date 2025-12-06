@@ -110,18 +110,32 @@ export function useAgora({ client }: UseAgoraOptions): UseAgoraReturn {
         const channel = channelName || "funprofile-test";
         console.log("[Agora] Joining channel:", channel);
 
-        // Use Temp Token directly (bypass Edge Function for now)
-        const appId = import.meta.env.VITE_AGORA_APP_ID || "00cfc73e8ca747d595b9324082d929a1";
-        const tempToken = import.meta.env.VITE_AGORA_TEMP_TOKEN || "007eJxTYAg4s3R5Xr6oZ+L2zOlSXsacfDe6WBLqDX7Z/T3w4995L2sFBgOD5LRkc+NUi+REcxPzFFNL0yRLYyMTAwujFEsjy0RD1yLjzIZARoYLNwMZGKEQxOdnSCvNKyjKT8vMSdUtSS0uYWAAAHJ7IvE=";
-        const agoraToken = token || tempToken;
+        // Fetch fresh token from Edge Function
+        console.log("[Agora] Fetching token from Edge Function...");
+        const { data, error: tokenError } = await supabase.functions.invoke("agora-token", {
+          body: { channelName: channel, uid: uid || 0, role: "publisher" },
+        });
+
+        if (tokenError || !data?.token) {
+          console.error("[Agora] Token fetch error:", tokenError);
+          throw new Error(`Không thể lấy token: ${tokenError?.message || 'Không có token trả về'}`);
+        }
+
+        const appId = data.appId;
+        const agoraToken = token || data.token;
 
         // ===== DEBUG LOGGING =====
         console.log("[Agora] ===== DEBUG INFO =====");
-        console.log("[Agora] Using TEMP TOKEN (bypass Edge Function)");
+        console.log("[Agora] Token fetched from Edge Function");
         console.log("[Agora] AGORA APP_ID =", appId);
         console.log("[Agora] AGORA TOKEN =", agoraToken?.substring(0, 30) + "...");
         console.log("[Agora] AGORA CHANNEL =", channel);
+        console.log("[Agora] Token expires at:", new Date(data.expireAt * 1000).toLocaleString());
         console.log("[Agora] ===== END DEBUG =====");
+
+        if (!appId || appId.length !== 32) {
+          throw new Error(`App ID không hợp lệ: ${appId}`);
+        }
 
         // Join the channel
         console.log("[Agora] Calling client.join with appId:", appId.substring(0, 8) + "...");
