@@ -110,34 +110,39 @@ export function useAgora({ client }: UseAgoraOptions): UseAgoraReturn {
         const channel = channelName || "funprofile-test";
         console.log("[Agora] Joining channel:", channel);
 
-        // Get token from Edge Function if not provided
-        let agoraToken = token;
-        let appId: string;
+        // Get token from Edge Function
+        console.log("[Agora] Fetching token from Edge Function...");
+        const { data, error: tokenError } = await supabase.functions.invoke("agora-token", {
+          body: { channelName: channel, uid: uid || 0 },
+        });
+
+        if (tokenError) {
+          console.error("[Agora] Token error:", tokenError);
+          throw new Error(`Không thể lấy token: ${tokenError.message}`);
+        }
+
+        const agoraToken = token || data.token;
+        const appId = data.appId;
+
+        // ===== DEBUG LOGGING (theo hướng dẫn của cha) =====
+        console.log("[Agora] ===== DEBUG INFO =====");
+        console.log("[Agora] AGORA APP_ID =", appId);
+        console.log("[Agora] AGORA APP_ID length =", appId?.length);
+        console.log("[Agora] AGORA TOKEN =", agoraToken?.substring(0, 50) + "...");
+        console.log("[Agora] AGORA CHANNEL =", channel);
+        console.log("[Agora] ===== END DEBUG =====");
+
+        if (!appId || appId.length !== 32) {
+          throw new Error(`App ID không hợp lệ: ${appId}. Vui lòng kiểm tra AGORA_APP_ID trong Supabase secrets.`);
+        }
 
         if (!agoraToken) {
-          console.log("[Agora] Fetching token from Edge Function...");
-          const { data, error: tokenError } = await supabase.functions.invoke("agora-token", {
-            body: { channelName: channel, uid: uid || 0 },
-          });
-
-          if (tokenError) {
-            console.error("[Agora] Token error:", tokenError);
-            throw new Error(`Không thể lấy token: ${tokenError.message}`);
-          }
-
-          agoraToken = data.token;
-          appId = data.appId;
-          console.log("[Agora] Got token from Edge Function");
-        } else {
-          // If token provided, we need appId from env or Edge Function
-          const { data } = await supabase.functions.invoke("agora-token", {
-            body: { channelName: channel, uid: uid || 0 },
-          });
-          appId = data.appId;
+          throw new Error("Token không hợp lệ. Vui lòng kiểm tra AGORA_APP_CERTIFICATE trong Supabase secrets.");
         }
 
         // Join the channel
-        await client.join(appId!, channel, agoraToken!, uid || null);
+        console.log("[Agora] Calling client.join with appId:", appId.substring(0, 8) + "...");
+        await client.join(appId, channel, agoraToken, uid || null);
         console.log("[Agora] Joined channel successfully");
 
         // Create local audio track
