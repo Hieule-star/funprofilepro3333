@@ -121,7 +121,7 @@ export default function MathKids({ onClose }: MathKidsProps) {
       });
 
       if (error) throw error;
-      toast.success(`Đã lưu ${score} điểm!`);
+      toast.success("Đã lưu điểm!");
       onClose();
     } catch (error) {
       console.error("Error saving score:", error);
@@ -150,7 +150,7 @@ export default function MathKids({ onClose }: MathKidsProps) {
           <Button onClick={generateQuestions} variant="outline">
             Chơi lại
           </Button>
-          <Button onClick={saveScore}>Lưu điểm & Thoát</Button>
+          <Button onClick={saveScore}>Lưu điểm</Button>
         </div>
       </motion.div>
     );

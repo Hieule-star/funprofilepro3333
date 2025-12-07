@@ -17,7 +17,7 @@ export default function FeaturedGame({ game, onPlay }: FeaturedGameProps) {
     >
       <Card className="relative overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5 border-primary/20">
         <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-semibold">
-          🔥 Nổi bật
+          🎮 Play for Fun
         </div>
 
         <div className="p-8">

@@ -185,7 +185,7 @@ export default function SpotDifference({ onClose }: SpotDifferenceProps) {
       });
 
       if (error) throw error;
-      toast.success(`Đã lưu ${score} điểm!`);
+      toast.success("Đã lưu điểm!");
       onClose();
     } catch (error) {
       toast.error("Không thể lưu điểm");
@@ -226,7 +226,7 @@ export default function SpotDifference({ onClose }: SpotDifferenceProps) {
             Chơi lại
           </Button>
           <Button onClick={saveScore} size="lg">
-            Lưu điểm & Thoát
+            Lưu điểm
           </Button>
         </div>
       </motion.div>
