@@ -116,7 +116,7 @@ export default function CatchStars({ onClose }: CatchStarsProps) {
       });
 
       if (error) throw error;
-      toast.success(`Đã lưu ${score} điểm!`);
+      toast.success("Đã lưu điểm!");
       onClose();
     } catch (error) {
       console.error("Error saving score:", error);
@@ -143,7 +143,7 @@ export default function CatchStars({ onClose }: CatchStarsProps) {
           <Button onClick={startGame} variant="outline">
             Chơi lại
           </Button>
-          <Button onClick={saveScore}>Lưu điểm & Thoát</Button>
+          <Button onClick={saveScore}>Lưu điểm</Button>
         </div>
       </motion.div>
     );

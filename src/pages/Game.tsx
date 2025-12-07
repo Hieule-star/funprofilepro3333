@@ -194,7 +194,10 @@ export default function Game() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center gap-3 mb-8">
           <Gamepad2 className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Trung Tâm Giải Trí</h1>
+          <div>
+            <h1 className="text-3xl font-bold">Trung Tâm Giải Trí</h1>
+            <p className="text-muted-foreground">🎮 Chơi vì niềm vui - Play for Fun!</p>
+          </div>
         </div>
 
         <Tabs defaultValue="games" className="space-y-6">

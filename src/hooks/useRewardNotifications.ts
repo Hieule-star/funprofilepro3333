@@ -43,8 +43,6 @@ export const useRewardNotifications = () => {
                 return "❤️";
               case "friend":
                 return "👥";
-              case "game":
-                return "🎮";
               case "daily_checkin":
                 return "📅";
               default:

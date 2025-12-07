@@ -113,7 +113,7 @@ export default function SpeedTyping({ onClose }: SpeedTypingProps) {
       });
 
       if (error) throw error;
-      toast.success(`Đã lưu ${finalScore} điểm!`);
+      toast.success("Đã lưu điểm!");
       onClose();
     } catch (error) {
       console.error("Error saving score:", error);
@@ -149,7 +149,7 @@ export default function SpeedTyping({ onClose }: SpeedTypingProps) {
         <p className="text-3xl font-bold text-primary mb-6">{finalScore} điểm</p>
         <div className="flex gap-3 justify-center">
           <Button onClick={startGame} variant="outline">Chơi lại</Button>
-          <Button onClick={saveScore}>Lưu điểm & Thoát</Button>
+          <Button onClick={saveScore}>Lưu điểm</Button>
         </div>
       </motion.div>
     );

@@ -115,7 +115,7 @@ export default function NumberSort({ onClose }: NumberSortProps) {
       });
 
       if (error) throw error;
-      toast.success(`Đã lưu ${getScore()} điểm!`);
+      toast.success("Đã lưu điểm!");
       onClose();
     } catch (error) {
       toast.error("Không thể lưu điểm");
@@ -174,7 +174,7 @@ export default function NumberSort({ onClose }: NumberSortProps) {
             Chơi lại
           </Button>
           <Button onClick={saveScore} size="lg">
-            Lưu điểm & Thoát
+            Lưu điểm
           </Button>
         </div>
       </motion.div>
