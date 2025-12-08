@@ -63,6 +63,19 @@ const Call = () => {
     };
   }, []);
 
+  // Retry playing remote videos when DOM elements are ready (fallback)
+  useEffect(() => {
+    remoteUsers.forEach((remoteUser) => {
+      if (remoteUser.videoTrack) {
+        const element = document.getElementById(`remote-player-${remoteUser.uid}`);
+        if (element && !element.hasChildNodes()) {
+          remoteUser.videoTrack.play(element);
+          console.log("[Agora] Retry playing video for:", remoteUser.uid);
+        }
+      }
+    });
+  }, [remoteUsers]);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}

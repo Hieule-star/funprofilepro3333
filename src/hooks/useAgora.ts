@@ -44,15 +44,23 @@ export function useAgora({ client }: UseAgoraOptions): UseAgoraReturn {
       await client.subscribe(user, mediaType);
 
       if (mediaType === "video") {
-        // Play remote video in element with id pattern: remote-player-{uid}
-        const remotePlayerElement = document.getElementById(`remote-player-${user.uid}`);
-        if (remotePlayerElement && user.videoTrack) {
-          user.videoTrack.play(remotePlayerElement);
-          console.log("[Agora] Playing remote video for user:", user.uid);
-        }
+        // 1. Add user to state FIRST so React renders the DOM element
         setRemoteUsers((prev) => {
           const filtered = prev.filter((u) => u.uid !== user.uid);
           return [...filtered, user];
+        });
+
+        // 2. Wait for React to render DOM element, then play video
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            const remotePlayerElement = document.getElementById(`remote-player-${user.uid}`);
+            if (remotePlayerElement && user.videoTrack) {
+              user.videoTrack.play(remotePlayerElement);
+              console.log("[Agora] Playing remote video for user:", user.uid);
+            } else {
+              console.warn("[Agora] Element not found for user:", user.uid, "- will retry via useEffect");
+            }
+          }, 100);
         });
       }
 
