@@ -32,6 +32,57 @@ export type Database = {
         }
         Relationships: []
       }
+      calls: {
+        Row: {
+          call_type: string | null
+          caller_id: string
+          created_at: string | null
+          ended_at: string | null
+          id: string
+          receiver_id: string
+          room_id: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          call_type?: string | null
+          caller_id: string
+          created_at?: string | null
+          ended_at?: string | null
+          id?: string
+          receiver_id: string
+          room_id: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          call_type?: string | null
+          caller_id?: string
+          created_at?: string | null
+          ended_at?: string | null
+          id?: string
+          receiver_id?: string
+          room_id?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calls_caller_id_fkey"
+            columns: ["caller_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_receiver_id_fkey"
+            columns: ["receiver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_requests: {
         Row: {
           amount_db: number
@@ -687,7 +738,9 @@ export type Database = {
           cover_url: string | null
           created_at: string
           id: string
+          is_online: boolean | null
           job_title: string | null
+          last_seen: string | null
           location: string | null
           reputation_score: number | null
           social_facebook: string | null
@@ -705,7 +758,9 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           id: string
+          is_online?: boolean | null
           job_title?: string | null
+          last_seen?: string | null
           location?: string | null
           reputation_score?: number | null
           social_facebook?: string | null
@@ -723,7 +778,9 @@ export type Database = {
           cover_url?: string | null
           created_at?: string
           id?: string
+          is_online?: boolean | null
           job_title?: string | null
+          last_seen?: string | null
           location?: string | null
           reputation_score?: number | null
           social_facebook?: string | null

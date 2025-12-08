@@ -1,7 +1,9 @@
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCallSignaling } from "@/hooks/useCallSignaling";
+import { useCalls } from "@/hooks/useCalls";
+import { usePresence } from "@/hooks/usePresence";
 import { CallContext } from "@/contexts/CallContext";
 import IncomingCallModal from "@/components/chat/IncomingCallModal";
 import { useToast } from "@/components/ui/use-toast";
@@ -15,8 +17,26 @@ export function IncomingCallProvider({ children }: IncomingCallProviderProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   
+  // Existing call signaling (Realtime Broadcast)
   const callSignaling = useCallSignaling(user?.id);
   const { incomingCall, acceptCall, rejectCall } = callSignaling;
+  
+  // New presence tracking
+  const { isOnline, onlineCount } = usePresence(user?.id);
+  
+  // New DB-based call management
+  const {
+    incomingCall: dbIncomingCall,
+    activeCall: dbActiveCall,
+    callHistory,
+    initiateCall: initiateDbCall,
+    acceptCall: acceptDbCall,
+    rejectCall: rejectDbCall,
+    endCall: endDbCall,
+    fetchCallHistory,
+    clearIncomingCall: clearDbIncomingCall,
+    clearActiveCall: clearDbActiveCall,
+  } = useCalls(user?.id);
 
   // Auto-navigate to chat when accepting call from any page
   const handleAcceptCall = () => {
@@ -57,8 +77,30 @@ export function IncomingCallProvider({ children }: IncomingCallProviderProps) {
     });
   };
 
+  // Combined context value
+  const contextValue = {
+    // Existing signaling
+    ...callSignaling,
+    
+    // Presence
+    isOnline,
+    onlineCount,
+    
+    // DB calls
+    dbIncomingCall,
+    dbActiveCall,
+    callHistory,
+    initiateDbCall,
+    acceptDbCall,
+    rejectDbCall,
+    endDbCall,
+    fetchCallHistory,
+    clearDbIncomingCall,
+    clearDbActiveCall,
+  };
+
   return (
-    <CallContext.Provider value={callSignaling}>
+    <CallContext.Provider value={contextValue}>
       {children}
       
       {/* Global incoming call modal - shows on ANY page */}
