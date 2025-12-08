@@ -5,7 +5,6 @@ import AgoraRTC, {
   IMicrophoneAudioTrack,
   IAgoraRTCRemoteUser
 } from "agora-rtc-sdk-ng";
-import { supabase } from "@/integrations/supabase/client";
 
 interface UseAgoraCallReturn {
   localVideoRef: React.RefObject<HTMLDivElement>;
@@ -55,7 +54,12 @@ export function useAgoraCall(): UseAgoraCallReturn {
       }
 
       const { token, appId } = data;
-      console.log('[Agora] Token fetched successfully from Vercel, appId:', appId);
+      console.log('[Agora] ===== DEBUG INFO =====');
+      console.log('[Agora] Channel:', channelName);
+      console.log('[Agora] Mode:', mode);
+      console.log('[Agora] App ID:', appId);
+      console.log('[Agora] Token prefix:', token?.substring(0, 30) + '...');
+      console.log('[Agora] ===== END DEBUG =====');
 
       // 2. Create Agora client
       const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
@@ -66,16 +70,28 @@ export function useAgoraCall(): UseAgoraCallReturn {
         console.log('[Agora] User published:', user.uid, mediaType);
         await client.subscribe(user, mediaType);
         
-        if (mediaType === "video" && remoteVideoRef.current) {
-          user.videoTrack?.play(remoteVideoRef.current);
-          console.log('[Agora] Playing remote video');
+        if (mediaType === "video") {
+          // 1. Cập nhật state TRƯỚC để React render DOM element
+          setRemoteUsers(prev => [...prev.filter(u => u.uid !== user.uid), user]);
+          
+          // 2. Đợi React render DOM, sau đó play video
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              if (remoteVideoRef.current && user.videoTrack) {
+                user.videoTrack.play(remoteVideoRef.current);
+                console.log('[Agora] Playing remote video for user:', user.uid);
+              } else {
+                console.warn('[Agora] Remote video element not ready for user:', user.uid);
+              }
+            }, 100);
+          });
         }
+        
         if (mediaType === "audio") {
           user.audioTrack?.play();
           console.log('[Agora] Playing remote audio');
+          setRemoteUsers(prev => [...prev.filter(u => u.uid !== user.uid), user]);
         }
-        
-        setRemoteUsers(prev => [...prev.filter(u => u.uid !== user.uid), user]);
       });
 
       client.on("user-unpublished", (user, mediaType) => {
