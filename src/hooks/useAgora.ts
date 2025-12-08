@@ -110,15 +110,26 @@ export function useAgora({ client }: UseAgoraOptions): UseAgoraReturn {
         const channel = channelName || "funprofile-test";
         console.log("[Agora] Joining channel:", channel);
 
-        // Fetch fresh token from Edge Function
-        console.log("[Agora] Fetching token from Edge Function...");
-        const { data, error: tokenError } = await supabase.functions.invoke("agora-token", {
-          body: { channelName: channel, uid: uid || 0, role: "publisher" },
+        // Fetch fresh token from Vercel Token Server
+        const VERCEL_TOKEN_SERVER = "https://mkdir-agora-token-server.vercel.app/api/agora-token";
+        console.log("[Agora] Fetching token from Vercel Token Server...");
+        
+        const tokenResponse = await fetch(VERCEL_TOKEN_SERVER, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ channelName: channel, uid: uid || 0 }),
         });
 
-        if (tokenError || !data?.token) {
-          console.error("[Agora] Token fetch error:", tokenError);
-          throw new Error(`Không thể lấy token: ${tokenError?.message || 'Không có token trả về'}`);
+        if (!tokenResponse.ok) {
+          const errorText = await tokenResponse.text();
+          console.error("[Agora] Token fetch error:", errorText);
+          throw new Error(`Không thể lấy token: ${errorText}`);
+        }
+
+        const data = await tokenResponse.json();
+        
+        if (!data?.token) {
+          throw new Error("Không có token trả về từ server");
         }
 
         const appId = data.appId;
@@ -126,11 +137,10 @@ export function useAgora({ client }: UseAgoraOptions): UseAgoraReturn {
 
         // ===== DEBUG LOGGING =====
         console.log("[Agora] ===== DEBUG INFO =====");
-        console.log("[Agora] Token fetched from Edge Function");
+        console.log("[Agora] Token fetched from Vercel Token Server");
         console.log("[Agora] AGORA APP_ID =", appId);
         console.log("[Agora] AGORA TOKEN =", agoraToken?.substring(0, 30) + "...");
         console.log("[Agora] AGORA CHANNEL =", channel);
-        console.log("[Agora] Token expires at:", new Date(data.expireAt * 1000).toLocaleString());
         console.log("[Agora] ===== END DEBUG =====");
 
         if (!appId || appId.length !== 32) {
