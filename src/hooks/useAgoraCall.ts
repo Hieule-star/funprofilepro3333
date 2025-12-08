@@ -32,18 +32,30 @@ export function useAgoraCall(): UseAgoraCallReturn {
     try {
       console.log('[Agora] Joining channel:', channelName, 'mode:', mode);
       
-      // 1. Get token from Edge Function
-      const { data, error } = await supabase.functions.invoke('agora-token', {
-        body: { channelName, uid: 0 }
+      // 1. Get token from Vercel Token Server
+      const VERCEL_TOKEN_SERVER = "https://mkdir-agora-token-server.vercel.app/api/agora-token";
+      console.log('[Agora] Fetching token from Vercel Token Server...');
+
+      const tokenResponse = await fetch(VERCEL_TOKEN_SERVER, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ channelName, uid: 0 }),
       });
-      
-      if (error) {
-        console.error('[Agora] Token error:', error);
-        throw error;
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error('[Agora] Token fetch error:', errorText);
+        throw new Error(`Không thể lấy token: ${errorText}`);
       }
-      
+
+      const data = await tokenResponse.json();
+
+      if (!data?.token) {
+        throw new Error("Không có token trả về từ server");
+      }
+
       const { token, appId } = data;
-      console.log('[Agora] Got token and appId');
+      console.log('[Agora] Token fetched successfully from Vercel, appId:', appId);
 
       // 2. Create Agora client
       const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
