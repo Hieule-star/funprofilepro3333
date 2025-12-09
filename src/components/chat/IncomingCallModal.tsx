@@ -19,6 +19,13 @@ export default function IncomingCallModal({
   onAccept,
   onReject
 }: IncomingCallModalProps) {
+  
+  const handleAccept = () => {
+    // Play accept sound
+    const acceptSound = new Audio('/sounds/correct.mp3');
+    acceptSound.play().catch(err => console.log('Could not play accept sound:', err));
+    onAccept();
+  };
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Play ringtone and vibrate when modal opens
@@ -102,7 +109,7 @@ export default function IncomingCallModal({
                 variant="default"
                 size="lg"
                 className="rounded-full h-16 w-16 bg-green-600 hover:bg-green-700"
-                onClick={onAccept}
+                onClick={handleAccept}
               >
                 <Phone className="h-6 w-6" />
               </Button>
