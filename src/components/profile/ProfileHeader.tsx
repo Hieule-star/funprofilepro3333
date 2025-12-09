@@ -153,6 +153,26 @@ export function ProfileHeader({
     setFriendLoading(false);
   };
 
+  const handleUnfriend = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const confirmed = window.confirm("Bạn có chắc muốn hủy kết bạn?");
+    if (!confirmed) return;
+
+    setFriendLoading(true);
+    
+    // Delete friendship in both directions
+    await supabase
+      .from("friendships")
+      .delete()
+      .or(`and(user_id.eq.${user.id},friend_id.eq.${profile.id}),and(user_id.eq.${profile.id},friend_id.eq.${user.id})`);
+
+    setFriendshipStatus("none");
+    toast({ title: "Đã hủy kết bạn" });
+    setFriendLoading(false);
+  };
+
   const getAvatarFallback = () => {
     if (profile.username) {
       return profile.username.substring(0, 2).toUpperCase();
@@ -320,7 +340,7 @@ export function ProfileHeader({
                   </Button>
                 )}
                 {friendshipStatus === "accepted" && (
-                  <Button variant="secondary" className="gap-2" disabled>
+                  <Button variant="secondary" className="gap-2" onClick={handleUnfriend} disabled={friendLoading}>
                     <UserCheck className="h-4 w-4" />
                     Bạn bè
                   </Button>
