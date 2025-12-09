@@ -126,6 +126,10 @@ export default function AgoraVideoCallModal({
       setCallStatus('ended');
       toast.info("Đối phương đã kết thúc cuộc gọi");
       
+      // Play end call sound
+      const audio = new Audio('/sounds/message-notification.mp3');
+      audio.play().catch(err => console.log('Could not play end call sound:', err));
+      
       // Auto close after 2 seconds - no cleanup to prevent timeout cancellation
       setTimeout(async () => {
         console.log('[AgoraModal] Auto closing modal');
