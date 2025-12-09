@@ -66,10 +66,11 @@ export function ProfileHeader({
   // Friendship state
   const [friendshipStatus, setFriendshipStatus] = useState<"none" | "pending_sent" | "pending_received" | "accepted">("none");
   const [friendLoading, setFriendLoading] = useState(false);
+  const [mutualFriends, setMutualFriends] = useState<{ id: string; username: string; avatar_url: string | null }[]>([]);
 
-  // Fetch friendship status
+  // Fetch friendship status and mutual friends
   useEffect(() => {
-    const fetchFriendshipStatus = async () => {
+    const fetchFriendshipData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || user.id === profile.id) return;
 
@@ -83,26 +84,68 @@ export function ProfileHeader({
 
       if (receivedRequest) {
         setFriendshipStatus(receivedRequest.status === "accepted" ? "accepted" : "pending_received");
-        return;
+      } else {
+        // Check if I sent request to them
+        const { data: sentRequest } = await supabase
+          .from("friendships")
+          .select("status")
+          .eq("user_id", user.id)
+          .eq("friend_id", profile.id)
+          .maybeSingle();
+
+        if (sentRequest) {
+          setFriendshipStatus(sentRequest.status === "accepted" ? "accepted" : "pending_sent");
+        } else {
+          setFriendshipStatus("none");
+        }
       }
 
-      // Check if I sent request to them
-      const { data: sentRequest } = await supabase
+      // Fetch mutual friends
+      // Get my friends
+      const { data: myFriendships } = await supabase
         .from("friendships")
-        .select("status")
-        .eq("user_id", user.id)
-        .eq("friend_id", profile.id)
-        .maybeSingle();
+        .select("user_id, friend_id")
+        .or(`user_id.eq.${user.id},friend_id.eq.${user.id}`)
+        .eq("status", "accepted");
 
-      if (sentRequest) {
-        setFriendshipStatus(sentRequest.status === "accepted" ? "accepted" : "pending_sent");
-        return;
+      // Get their friends
+      const { data: theirFriendships } = await supabase
+        .from("friendships")
+        .select("user_id, friend_id")
+        .or(`user_id.eq.${profile.id},friend_id.eq.${profile.id}`)
+        .eq("status", "accepted");
+
+      if (myFriendships && theirFriendships) {
+        // Extract friend IDs for me
+        const myFriendIds = myFriendships.map(f => 
+          f.user_id === user.id ? f.friend_id : f.user_id
+        );
+
+        // Extract friend IDs for them
+        const theirFriendIds = theirFriendships.map(f => 
+          f.user_id === profile.id ? f.friend_id : f.user_id
+        );
+
+        // Find common friends (excluding me and the profile owner)
+        const mutualIds = myFriendIds.filter(id => 
+          theirFriendIds.includes(id) && id !== user.id && id !== profile.id
+        );
+
+        if (mutualIds.length > 0) {
+          const { data: mutualProfiles } = await supabase
+            .from("profiles")
+            .select("id, username, avatar_url")
+            .in("id", mutualIds)
+            .limit(5);
+
+          if (mutualProfiles) {
+            setMutualFriends(mutualProfiles);
+          }
+        }
       }
-
-      setFriendshipStatus("none");
     };
 
-    fetchFriendshipStatus();
+    fetchFriendshipData();
   }, [profile.id]);
 
   const handleSendFriendRequest = async () => {
@@ -359,6 +402,35 @@ export function ProfileHeader({
             )}
           </div>
         </div>
+
+        {/* Mutual Friends Section - Only show on other's profile */}
+        {!isOwnProfile && mutualFriends.length > 0 && (
+          <div className="mt-4 pt-4 border-t">
+            <p className="text-sm text-muted-foreground mb-2">
+              {mutualFriends.length} bạn chung
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2">
+                {mutualFriends.slice(0, 5).map((friend) => (
+                  <Avatar 
+                    key={friend.id} 
+                    className="h-8 w-8 border-2 border-card cursor-pointer hover:z-10 transition-transform hover:scale-110"
+                    onClick={() => navigate(`/user/${friend.id}`)}
+                  >
+                    {friend.avatar_url && <AvatarImage src={friend.avatar_url} />}
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                      {friend.username?.substring(0, 2).toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {mutualFriends.map(f => f.username).slice(0, 2).join(", ")}
+                {mutualFriends.length > 2 && ` và ${mutualFriends.length - 2} người khác`}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Stats Row */}
         <div className="flex items-center gap-6 mt-6 pt-6 border-t text-sm">
