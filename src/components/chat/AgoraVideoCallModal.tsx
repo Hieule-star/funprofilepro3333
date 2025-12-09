@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Loader2, User, AlertCircle, CheckCircle2, Wifi } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAgoraCall } from "@/hooks/useAgoraCall";
+import { toast } from "sonner";
 
 interface AgoraVideoCallModalProps {
   open: boolean;
@@ -30,6 +31,7 @@ export default function AgoraVideoCallModal({
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [callStatus, setCallStatus] = useState<CallStatus>('connecting');
   const [connectionTime, setConnectionTime] = useState(0);
+  const [wasConnected, setWasConnected] = useState(false);
   
   // Track if we've already joined to prevent double-joining
   const hasJoinedRef = useRef(false);
@@ -110,8 +112,27 @@ export default function AgoraVideoCallModal({
     if (remoteUsers.length > 0) {
       console.log('[AgoraModal] Remote user joined, status -> connected');
       setCallStatus('connected');
+      setWasConnected(true);
     }
   }, [remoteUsers]);
+
+  // Detect when remote user leaves after connection was established
+  useEffect(() => {
+    if (wasConnected && remoteUsers.length === 0 && isJoined && callStatus === 'connected') {
+      console.log('[AgoraModal] Remote user left after connection, ending call');
+      setCallStatus('ended');
+      toast.info("Đối phương đã kết thúc cuộc gọi");
+      
+      // Auto close after 2 seconds
+      const timeout = setTimeout(async () => {
+        await leaveChannel();
+        hasJoinedRef.current = false;
+        onOpenChange(false);
+      }, 2000);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [wasConnected, remoteUsers.length, isJoined, callStatus, leaveChannel, onOpenChange]);
 
   // Format connection time
   const formatTime = (seconds: number) => {
@@ -154,7 +175,7 @@ export default function AgoraVideoCallModal({
       case 'ended':
         return {
           icon: <PhoneOff className="h-4 w-4 text-gray-400" />,
-          text: 'Cuộc gọi đã kết thúc',
+          text: 'Đối phương đã kết thúc cuộc gọi',
           bgColor: 'bg-gray-500/20 border-gray-500/30',
           textColor: 'text-gray-400'
         };
