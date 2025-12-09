@@ -263,7 +263,7 @@ export function ProfileHeader({
 
       <CardContent className="relative pt-0">
         {/* Avatar */}
-        <div className="relative -mt-16 sm:-mt-20 mb-4">
+        <div className="relative -mt-16 sm:-mt-20 mb-4 w-fit">
           <Avatar className="h-28 w-28 sm:h-36 sm:w-36 border-4 border-card shadow-lg">
             {profile.avatar_url && <AvatarImage src={profile.avatar_url} />}
             <AvatarFallback className="bg-primary/10 text-primary text-3xl sm:text-4xl font-bold">
