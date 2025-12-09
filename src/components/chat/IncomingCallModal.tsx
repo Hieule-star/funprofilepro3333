@@ -21,17 +21,37 @@ export default function IncomingCallModal({
 }: IncomingCallModalProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Play ringtone when modal opens
+  // Play ringtone and vibrate when modal opens
   useEffect(() => {
+    let vibrationInterval: NodeJS.Timeout | null = null;
+
     if (open) {
+      // Play ringtone
       audioRef.current = new Audio('/sounds/message-notification.mp3');
       audioRef.current.loop = true;
       audioRef.current.play().catch(err => console.log('Could not play ringtone:', err));
+
+      // Vibrate on mobile (pattern: vibrate 500ms, pause 300ms, repeat)
+      if ('vibrate' in navigator) {
+        // Initial vibration
+        navigator.vibrate([500, 300, 500, 300, 500]);
+        
+        // Repeat vibration every 2.5 seconds
+        vibrationInterval = setInterval(() => {
+          navigator.vibrate([500, 300, 500, 300, 500]);
+        }, 2500);
+      }
     } else {
+      // Stop ringtone
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
         audioRef.current = null;
+      }
+      
+      // Stop vibration
+      if ('vibrate' in navigator) {
+        navigator.vibrate(0);
       }
     }
 
@@ -39,6 +59,12 @@ export default function IncomingCallModal({
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current = null;
+      }
+      if (vibrationInterval) {
+        clearInterval(vibrationInterval);
+      }
+      if ('vibrate' in navigator) {
+        navigator.vibrate(0);
       }
     };
   }, [open]);
