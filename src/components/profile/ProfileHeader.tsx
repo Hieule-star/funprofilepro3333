@@ -240,7 +240,7 @@ export function ProfileHeader({
   return (
     <Card className="overflow-hidden border-primary/20">
       {/* Cover Image */}
-      <div className="relative h-48 sm:h-64 w-full bg-gradient-hero">
+      <div className="relative h-48 sm:h-64 w-full bg-gradient-hero z-10">
         {profile.cover_url && (
           <img
             src={profile.cover_url}
@@ -252,7 +252,7 @@ export function ProfileHeader({
           <Button
             variant="secondary"
             size="sm"
-            className="absolute bottom-4 right-4 gap-2 bg-background/80 backdrop-blur-sm"
+            className="absolute bottom-4 right-4 gap-2 bg-background/80 backdrop-blur-sm z-20"
             onClick={onCoverEditClick}
           >
             <Camera className="h-4 w-4" />
