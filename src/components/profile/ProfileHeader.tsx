@@ -12,10 +12,16 @@ import {
   Camera,
   Award,
   TrendingUp,
-  Shield
+  Shield,
+  UserPlus,
+  UserCheck,
+  Clock
 } from "lucide-react";
 import { useFollowers } from "@/hooks/useFollowers";
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProfileData {
   id: string;
@@ -52,9 +58,100 @@ export function ProfileHeader({
   onCoverEditClick,
 }: ProfileHeaderProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { followersCount, followingCount, isFollowing, actionLoading, toggleFollow } = useFollowers({
     userId: profile.id,
   });
+
+  // Friendship state
+  const [friendshipStatus, setFriendshipStatus] = useState<"none" | "pending_sent" | "pending_received" | "accepted">("none");
+  const [friendLoading, setFriendLoading] = useState(false);
+
+  // Fetch friendship status
+  useEffect(() => {
+    const fetchFriendshipStatus = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || user.id === profile.id) return;
+
+      // Check if they sent request to me
+      const { data: receivedRequest } = await supabase
+        .from("friendships")
+        .select("status")
+        .eq("user_id", profile.id)
+        .eq("friend_id", user.id)
+        .maybeSingle();
+
+      if (receivedRequest) {
+        setFriendshipStatus(receivedRequest.status === "accepted" ? "accepted" : "pending_received");
+        return;
+      }
+
+      // Check if I sent request to them
+      const { data: sentRequest } = await supabase
+        .from("friendships")
+        .select("status")
+        .eq("user_id", user.id)
+        .eq("friend_id", profile.id)
+        .maybeSingle();
+
+      if (sentRequest) {
+        setFriendshipStatus(sentRequest.status === "accepted" ? "accepted" : "pending_sent");
+        return;
+      }
+
+      setFriendshipStatus("none");
+    };
+
+    fetchFriendshipStatus();
+  }, [profile.id]);
+
+  const handleSendFriendRequest = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setFriendLoading(true);
+    const { error } = await supabase
+      .from("friendships")
+      .insert({ user_id: user.id, friend_id: profile.id, status: "pending" });
+
+    if (!error) {
+      setFriendshipStatus("pending_sent");
+      toast({ title: "Đã gửi lời mời kết bạn" });
+    }
+    setFriendLoading(false);
+  };
+
+  const handleCancelFriendRequest = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setFriendLoading(true);
+    await supabase
+      .from("friendships")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("friend_id", profile.id);
+
+    setFriendshipStatus("none");
+    toast({ title: "Đã hủy lời mời kết bạn" });
+    setFriendLoading(false);
+  };
+
+  const handleAcceptFriendRequest = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    setFriendLoading(true);
+    await supabase
+      .from("friendships")
+      .update({ status: "accepted" })
+      .eq("user_id", profile.id)
+      .eq("friend_id", user.id);
+
+    setFriendshipStatus("accepted");
+    toast({ title: "Đã chấp nhận lời mời kết bạn" });
+    setFriendLoading(false);
+  };
 
   const getAvatarFallback = () => {
     if (profile.username) {
@@ -74,7 +171,6 @@ export function ProfileHeader({
   const levelInfo = getLevel(profile.reputation_score);
 
   const handleMessageClick = () => {
-    // Navigate to chat with this user
     navigate(`/chat?userId=${profile.id}`);
   };
 
@@ -196,7 +292,7 @@ export function ProfileHeader({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {isOwnProfile ? (
               <Button className="gap-2" onClick={onEditClick}>
                 <Settings className="h-4 w-4" />
@@ -204,6 +300,32 @@ export function ProfileHeader({
               </Button>
             ) : (
               <>
+                {/* Friend Button */}
+                {friendshipStatus === "none" && (
+                  <Button className="gap-2" onClick={handleSendFriendRequest} disabled={friendLoading}>
+                    <UserPlus className="h-4 w-4" />
+                    Kết bạn
+                  </Button>
+                )}
+                {friendshipStatus === "pending_sent" && (
+                  <Button variant="outline" className="gap-2" onClick={handleCancelFriendRequest} disabled={friendLoading}>
+                    <Clock className="h-4 w-4" />
+                    Đã gửi
+                  </Button>
+                )}
+                {friendshipStatus === "pending_received" && (
+                  <Button className="gap-2" onClick={handleAcceptFriendRequest} disabled={friendLoading}>
+                    <UserCheck className="h-4 w-4" />
+                    Chấp nhận
+                  </Button>
+                )}
+                {friendshipStatus === "accepted" && (
+                  <Button variant="secondary" className="gap-2" disabled>
+                    <UserCheck className="h-4 w-4" />
+                    Bạn bè
+                  </Button>
+                )}
+                
                 <FollowButton
                   isFollowing={isFollowing}
                   loading={actionLoading}
