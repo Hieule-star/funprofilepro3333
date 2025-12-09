@@ -13,6 +13,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import { RewardNotificationProvider } from "@/components/RewardNotificationProvider";
 import { MessageNotificationProvider } from "@/components/MessageNotificationProvider";
 import { IncomingCallProvider } from "@/components/IncomingCallProvider";
+import { FriendRequestNotificationProvider } from "@/components/FriendRequestNotificationProvider";
 import { FloatingHeartsProvider } from "@/components/ui/floating-hearts";
 import { useWalletReconnect } from "@/hooks/useWalletReconnect";
 
@@ -59,6 +60,7 @@ const App = () => {
                     <IncomingCallProvider>
                       <RewardNotificationProvider>
                         <MessageNotificationProvider>
+                          <FriendRequestNotificationProvider>
                           <WalletProvider>
                             <WalletReconnectWrapper />
                             <Navbar />
@@ -157,6 +159,7 @@ const App = () => {
                   <Route path="*" element={<NotFound />} />
                         </Routes>
                           </WalletProvider>
+                          </FriendRequestNotificationProvider>
                         </MessageNotificationProvider>
                       </RewardNotificationProvider>
                     </IncomingCallProvider>
@@ -177,6 +180,7 @@ const App = () => {
                   <IncomingCallProvider>
                     <RewardNotificationProvider>
                       <MessageNotificationProvider>
+                        <FriendRequestNotificationProvider>
                         <WalletProvider>
                           <WalletReconnectWrapper />
                         <Navbar />
@@ -274,6 +278,7 @@ const App = () => {
                        <Route path="*" element={<NotFound />} />
                       </Routes>
                         </WalletProvider>
+                        </FriendRequestNotificationProvider>
                       </MessageNotificationProvider>
                     </RewardNotificationProvider>
                   </IncomingCallProvider>
