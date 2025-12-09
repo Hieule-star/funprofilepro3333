@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +19,29 @@ export default function IncomingCallModal({
   onAccept,
   onReject
 }: IncomingCallModalProps) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Play ringtone when modal opens
+  useEffect(() => {
+    if (open) {
+      audioRef.current = new Audio('/sounds/message-notification.mp3');
+      audioRef.current.loop = true;
+      audioRef.current.play().catch(err => console.log('Could not play ringtone:', err));
+    } else {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current = null;
+      }
+    }
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [open]);
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onReject()}>
       <DialogContent className="sm:max-w-md">
