@@ -35,6 +35,8 @@ export default function AgoraVideoCallModal({
   
   // Track if we've already joined to prevent double-joining
   const hasJoinedRef = useRef(false);
+  // Track if we're already ending to prevent multiple executions
+  const isEndingRef = useRef(false);
   const isJoiningRef = useRef(false);
   const connectionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -118,21 +120,21 @@ export default function AgoraVideoCallModal({
 
   // Detect when remote user leaves after connection was established
   useEffect(() => {
-    if (wasConnected && remoteUsers.length === 0 && isJoined && callStatus === 'connected') {
+    if (wasConnected && remoteUsers.length === 0 && isJoined && !isEndingRef.current) {
+      isEndingRef.current = true;
       console.log('[AgoraModal] Remote user left after connection, ending call');
       setCallStatus('ended');
       toast.info("Đối phương đã kết thúc cuộc gọi");
       
-      // Auto close after 2 seconds
-      const timeout = setTimeout(async () => {
+      // Auto close after 2 seconds - no cleanup to prevent timeout cancellation
+      setTimeout(async () => {
+        console.log('[AgoraModal] Auto closing modal');
         await leaveChannel();
         hasJoinedRef.current = false;
         onOpenChange(false);
       }, 2000);
-      
-      return () => clearTimeout(timeout);
     }
-  }, [wasConnected, remoteUsers.length, isJoined, callStatus, leaveChannel, onOpenChange]);
+  }, [wasConnected, remoteUsers.length, isJoined, leaveChannel, onOpenChange]);
 
   // Format connection time
   const formatTime = (seconds: number) => {
