@@ -114,22 +114,29 @@ export function useMediaUpload() {
         xhr.send(file);
       });
 
-      // Step 3: Update media_assets with R2 URL and trigger IPFS pin
-      const { error: updateError } = await supabase
-        .from('media_assets')
-        .update({ r2_url: publicUrl })
-        .eq('id', mediaAssetId);
+      // Step 3: Confirm upload and trigger IPFS pinning
+      console.log('Confirming R2 upload for media asset:', mediaAssetId);
+      const { data: confirmData, error: confirmError } = await supabase.functions.invoke(
+        'media-confirm-upload',
+        {
+          body: {
+            mediaAssetId: mediaAssetId,
+            triggerIpfsPin: true,
+          },
+        }
+      );
 
-      if (updateError) {
-        console.error('Failed to update R2 URL:', updateError);
+      if (confirmError) {
+        console.error('Failed to confirm upload:', confirmError);
+        throw new Error(confirmError.message || 'Failed to confirm upload');
       }
 
-      // Step 4: Trigger IPFS pinning in background (fire-and-forget)
-      supabase.functions.invoke('media-pin-to-ipfs', {
-        body: { mediaAssetId },
-      }).catch((err) => {
-        console.warn('IPFS pinning will be retried by scheduler:', err);
-      });
+      if (!confirmData?.success) {
+        console.error('Upload confirmation failed:', confirmData?.error);
+        throw new Error(confirmData?.error || 'Upload confirmation failed');
+      }
+
+      console.log('Upload confirmed successfully, IPFS pinning triggered');
 
       // Fetch the created media asset
       const { data: mediaAsset } = await supabase
