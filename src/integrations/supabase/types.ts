@@ -567,6 +567,86 @@ export type Database = {
           },
         ]
       }
+      media_assets: {
+        Row: {
+          created_at: string | null
+          id: string
+          ipfs_cid: string | null
+          ipfs_gateway_url: string | null
+          last_pin_error: string | null
+          mime: string
+          original_filename: string | null
+          owner_id: string
+          pin_attempts: number
+          pin_provider: string | null
+          pin_status: Database["public"]["Enums"]["pin_status_type"]
+          post_id: string | null
+          r2_bucket: string | null
+          r2_key: string | null
+          r2_url: string | null
+          sha256: string | null
+          size: number
+          stream_id: string | null
+          stream_playback_url: string | null
+          type: Database["public"]["Enums"]["media_type"]
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          ipfs_cid?: string | null
+          ipfs_gateway_url?: string | null
+          last_pin_error?: string | null
+          mime: string
+          original_filename?: string | null
+          owner_id: string
+          pin_attempts?: number
+          pin_provider?: string | null
+          pin_status?: Database["public"]["Enums"]["pin_status_type"]
+          post_id?: string | null
+          r2_bucket?: string | null
+          r2_key?: string | null
+          r2_url?: string | null
+          sha256?: string | null
+          size: number
+          stream_id?: string | null
+          stream_playback_url?: string | null
+          type: Database["public"]["Enums"]["media_type"]
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          ipfs_cid?: string | null
+          ipfs_gateway_url?: string | null
+          last_pin_error?: string | null
+          mime?: string
+          original_filename?: string | null
+          owner_id?: string
+          pin_attempts?: number
+          pin_provider?: string | null
+          pin_status?: Database["public"]["Enums"]["pin_status_type"]
+          post_id?: string | null
+          r2_bucket?: string | null
+          r2_key?: string | null
+          r2_url?: string | null
+          sha256?: string | null
+          size?: number
+          stream_id?: string | null
+          stream_playback_url?: string | null
+          type?: Database["public"]["Enums"]["media_type"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_assets_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -1127,6 +1207,8 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      media_type: "image" | "video"
+      pin_status_type: "pending" | "pinning" | "pinned" | "failed" | "unpinned"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1255,6 +1337,8 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      media_type: ["image", "video"],
+      pin_status_type: ["pending", "pinning", "pinned", "failed", "unpinned"],
     },
   },
 } as const
