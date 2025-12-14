@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ImagePlus, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import MediaUpload, { MediaFile } from "./MediaUpload";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useDraftPost, DraftMedia } from "@/hooks/useDraftPost";
 
@@ -79,7 +80,6 @@ export default function CreatePost() {
     setIsPosting(true);
 
     try {
-      const { supabase } = await import("@/integrations/supabase/client");
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -89,25 +89,44 @@ export default function CreatePost() {
       // Format media data
       const mediaData = media.map(m => ({
         url: m.url,
-        type: m.type
+        type: m.type,
+        mediaAssetId: m.mediaAssetId
       })).filter(m => m.url);
 
       // Insert post into database
-      const { error } = await supabase
+      const { data: newPost, error } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
           content: content.trim() || null,
-          media: mediaData.length > 0 ? mediaData : null,
-        });
+          media: mediaData.map(m => ({ url: m.url, type: m.type })),
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Link media_assets to the new post
+      const mediaAssetIds = mediaData
+        .map(m => m.mediaAssetId)
+        .filter((id): id is string => !!id);
+
+      if (mediaAssetIds.length > 0 && newPost?.id) {
+        const { error: updateError } = await supabase
+          .from('media_assets')
+          .update({ post_id: newPost.id })
+          .in('id', mediaAssetIds);
+
+        if (updateError) {
+          console.error("Error linking media assets:", updateError);
+        }
+      }
 
       setIsPosting(false);
       setContent("");
       setMedia([]);
       setShowMediaUpload(false);
-      clearDraft(); // Clear draft after successful post
+      clearDraft();
       
       toast({
         title: "Thành công",
