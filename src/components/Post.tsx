@@ -11,10 +11,16 @@ import { useToast } from "@/hooks/use-toast";
 import CommentList from "@/components/CommentList";
 import CommentInput from "@/components/CommentInput";
 import { useNavigate } from "react-router-dom";
+import { MediaStatusBadge, MediaStatusIndicator, PinStatus } from "@/components/ui/MediaStatusBadge";
+import { useMediaUpload, MediaAsset } from "@/hooks/useMediaUpload";
 
 interface MediaItem {
   type: "image" | "video";
   url: string;
+  mediaAssetId?: string;
+  pinStatus?: PinStatus;
+  ipfsCid?: string | null;
+  ipfsGatewayUrl?: string | null;
 }
 
 interface PostProps {
@@ -49,11 +55,77 @@ export default function Post({
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { retryPin, getMediaByPostId } = useMediaUpload();
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(initialLikes);
   const [commentsCount, setCommentsCount] = useState(comments);
   const [showComments, setShowComments] = useState(false);
   const [replyTo, setReplyTo] = useState<{ commentId: string; username: string } | null>(null);
+  const [mediaWithStatus, setMediaWithStatus] = useState<MediaItem[]>(media || []);
+
+  // Fetch media assets with IPFS status for this post
+  useEffect(() => {
+    const fetchMediaStatus = async () => {
+      if (!postId) return;
+      
+      const mediaAssets = await getMediaByPostId(postId);
+      if (mediaAssets.length > 0) {
+        // Merge media assets with existing media
+        const updatedMedia = (media || []).map(m => {
+          const asset = mediaAssets.find(a => a.r2_url === m.url);
+          if (asset) {
+            return {
+              ...m,
+              mediaAssetId: asset.id,
+              pinStatus: asset.pin_status,
+              ipfsCid: asset.ipfs_cid,
+              ipfsGatewayUrl: asset.ipfs_gateway_url,
+            };
+          }
+          return m;
+        });
+        setMediaWithStatus(updatedMedia);
+      }
+    };
+    
+    fetchMediaStatus();
+  }, [postId, media]);
+
+  // Subscribe to media_assets changes for IPFS status updates
+  useEffect(() => {
+    if (!postId) return;
+
+    const channel = supabase
+      .channel(`media-status-${postId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'media_assets',
+          filter: `post_id=eq.${postId}`
+        },
+        (payload) => {
+          const updated = payload.new as MediaAsset;
+          setMediaWithStatus(prev => prev.map(m => {
+            if (m.mediaAssetId === updated.id) {
+              return {
+                ...m,
+                pinStatus: updated.pin_status,
+                ipfsCid: updated.ipfs_cid,
+                ipfsGatewayUrl: updated.ipfs_gateway_url,
+              };
+            }
+            return m;
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [postId]);
 
   useEffect(() => {
     if (postId && user) {
@@ -173,24 +245,40 @@ export default function Post({
     }
   };
 
+  const handleRetryPin = async (mediaAssetId: string) => {
+    const success = await retryPin(mediaAssetId);
+    if (success) {
+      toast({
+        title: "Đang thử lại",
+        description: "IPFS pinning đang được xử lý lại",
+      });
+    } else {
+      toast({
+        title: "Lỗi",
+        description: "Không thể thử lại IPFS pinning",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderMedia = () => {
-    if (!media || media.length === 0) return null;
+    if (!mediaWithStatus || mediaWithStatus.length === 0) return null;
 
     const gridClass =
-      media.length === 1
+      mediaWithStatus.length === 1
         ? "grid-cols-1"
-        : media.length === 2
+        : mediaWithStatus.length === 2
         ? "grid-cols-2"
-        : media.length === 3
+        : mediaWithStatus.length === 3
         ? "grid-cols-3"
         : "grid-cols-2";
 
     return (
       <div className={`grid gap-2 ${gridClass} mt-3`}>
-        {media.map((item, index) => (
+        {mediaWithStatus.map((item, index) => (
           <div
             key={index}
-            className="relative overflow-hidden rounded-lg bg-muted"
+            className="group relative overflow-hidden rounded-lg bg-muted"
           >
             {item.type === "image" ? (
               <img
@@ -204,6 +292,29 @@ export default function Post({
                 className="w-full h-auto object-contain"
                 controls
               />
+            )}
+            
+            {/* IPFS Status Indicator */}
+            {item.pinStatus && (
+              <div className="absolute left-2 top-2 opacity-70 group-hover:opacity-100 transition-opacity">
+                <MediaStatusIndicator pinStatus={item.pinStatus} />
+              </div>
+            )}
+            
+            {/* IPFS Status Badge on hover */}
+            {item.pinStatus && item.mediaAssetId && (
+              <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <MediaStatusBadge
+                  pinStatus={item.pinStatus}
+                  ipfsCid={item.ipfsCid}
+                  ipfsGatewayUrl={item.ipfsGatewayUrl}
+                  onRetry={item.pinStatus === 'failed' 
+                    ? () => handleRetryPin(item.mediaAssetId!)
+                    : undefined
+                  }
+                  size="sm"
+                />
+              </div>
             )}
           </div>
         ))}
