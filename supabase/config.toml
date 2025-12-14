@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.media-pin-scheduler]
 verify_jwt = false
+
+[functions.media-confirm-upload]
+verify_jwt = true

@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     const ext = fileName.split(".").pop() || "";
     const uniqueFileName = `${folder}/${timestamp}-${randomStr}.${ext}`;
 
-    // Create media_assets record first
+    // Create media_assets record first (WITHOUT r2_url - will be set after upload confirmed)
     const { data: mediaAsset, error: insertError } = await supabase
       .from("media_assets")
       .insert({
@@ -106,7 +106,7 @@ Deno.serve(async (req) => {
         original_filename: fileName,
         r2_bucket: r2BucketName,
         r2_key: uniqueFileName,
-        r2_url: `${r2PublicUrl}/${uniqueFileName}`,
+        // r2_url is NOT set here - will be set by media-confirm-upload after successful upload
         pin_status: "pending",
         pin_attempts: 0,
       })
@@ -164,12 +164,16 @@ Deno.serve(async (req) => {
     queryParams.append("X-Amz-Signature", signature);
     const presignedUrl = `${r2Endpoint}/${r2BucketName}/${uniqueFileName}?${queryParams.toString()}`;
 
+    // Build expected public URL (for client to use after confirming upload)
+    const expectedPublicUrl = `${r2PublicUrl}/${uniqueFileName}`;
+    
     console.log(`Created media asset ${mediaAsset.id} for user ${user.id}, file: ${fileName}`);
 
     return new Response(JSON.stringify({
+      success: true,
       uploadUrl: presignedUrl,
       mediaAssetId: mediaAsset.id,
-      publicUrl: mediaAsset.r2_url,
+      publicUrl: expectedPublicUrl, // Expected URL after upload is confirmed
       r2Key: uniqueFileName,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }

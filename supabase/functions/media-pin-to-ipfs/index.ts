@@ -164,6 +164,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Check if r2_url is set (upload must be confirmed first)
+    if (!asset.r2_url) {
+      console.log(`Media asset ${mediaAssetId} has no r2_url yet - upload not confirmed`);
+      return new Response(JSON.stringify({ 
+        error: "Upload not confirmed yet",
+        message: "R2 upload must be confirmed before IPFS pinning" 
+      }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
     // Update status to pinning
     await supabase
       .from("media_assets")
