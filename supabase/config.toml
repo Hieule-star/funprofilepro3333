@@ -23,3 +23,15 @@ verify_jwt = true
 
 [functions.treasury-monitor]
 verify_jwt = false
+
+[functions.media-create-upload-url]
+verify_jwt = true
+
+[functions.media-pin-to-ipfs]
+verify_jwt = false
+
+[functions.media-unpin-ipfs]
+verify_jwt = true
+
+[functions.media-pin-scheduler]
+verify_jwt = false
