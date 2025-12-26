@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { transformToMediaCdn } from '@/lib/media-url';
 
 export type PinStatus = 'pending' | 'pinning' | 'pinned' | 'failed' | 'unpinned';
 
@@ -151,7 +152,7 @@ export function useMediaUpload() {
       return {
         success: true,
         mediaAsset: mediaAsset as MediaAsset,
-        publicUrl,
+        publicUrl: transformToMediaCdn(publicUrl),
       };
     } catch (err: any) {
       const errorMessage = err.message || 'Upload failed';

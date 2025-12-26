@@ -71,16 +71,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build the public URL from R2 config
+    // Build the public URL using CDN domain
+    const mediaCdnUrl = Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL")!;
+    const publicUrl = `${mediaCdnUrl}/${asset.r2_key}`;
+    
+    // Use R2 URL for verification (HEAD request to check file exists)
     const r2PublicUrl = Deno.env.get("R2_PUBLIC_URL")!;
-    const publicUrl = `${r2PublicUrl}/${asset.r2_key}`;
+    const r2VerifyUrl = `${r2PublicUrl}/${asset.r2_key}`;
 
-    // Verify file exists on R2 by making HEAD request
-    console.log(`Verifying file exists on R2: ${publicUrl}`);
-    const headResponse = await fetch(publicUrl, { method: "HEAD" });
+    // Verify file exists on R2 by making HEAD request (use R2 URL for verification)
+    console.log(`Verifying file exists on R2: ${r2VerifyUrl}`);
+    const headResponse = await fetch(r2VerifyUrl, { method: "HEAD" });
     
     if (!headResponse.ok) {
-      console.error(`File not found on R2: ${publicUrl} - Status: ${headResponse.status}`);
+      console.error(`File not found on R2: ${r2VerifyUrl} - Status: ${headResponse.status}`);
       return new Response(JSON.stringify({ 
         error: "File not found on R2. Upload may have failed.",
         status: headResponse.status

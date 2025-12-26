@@ -13,6 +13,7 @@ import CommentInput from "@/components/CommentInput";
 import { useNavigate } from "react-router-dom";
 import { MediaStatusBadge, MediaStatusIndicator, PinStatus } from "@/components/ui/MediaStatusBadge";
 import { useMediaUpload, MediaAsset } from "@/hooks/useMediaUpload";
+import { transformToMediaCdn } from "@/lib/media-url";
 
 interface MediaItem {
   type: "image" | "video";
@@ -282,13 +283,13 @@ export default function Post({
           >
             {item.type === "image" ? (
               <img
-                src={item.url}
+                src={transformToMediaCdn(item.url)}
                 alt={`Media ${index + 1}`}
                 className="w-full h-auto object-contain transition-transform hover:scale-105"
               />
             ) : (
               <video
-                src={item.url}
+                src={transformToMediaCdn(item.url)}
                 className="w-full h-auto object-contain"
                 controls
               />
