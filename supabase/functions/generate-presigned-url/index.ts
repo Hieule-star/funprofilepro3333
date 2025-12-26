@@ -72,9 +72,9 @@ Deno.serve(async (req) => {
     const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID") || "";
     const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY") || "";
     const bucketName = Deno.env.get("R2_BUCKET_NAME") || "";
-    const publicBaseUrl = Deno.env.get("R2_PUBLIC_URL") || "";
+    const mediaCdnUrl = Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL") || "";
 
-    if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName || !publicBaseUrl) {
+    if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName || !mediaCdnUrl) {
       console.error("Missing R2 configuration");
       return new Response(
         JSON.stringify({ error: "Server storage is not configured" }),
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
 
     // Generate final presigned URL
     const presignedUrl = `${endpointUrl.toString()}?${queryParams.toString()}`;
-    const publicUrl = `${publicBaseUrl}/${uniqueFileName}`;
+    const publicUrl = `${mediaCdnUrl}/${uniqueFileName}`;
 
     console.log("Presigned URL generated successfully");
 

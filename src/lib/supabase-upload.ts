@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { transformToMediaCdn } from "@/lib/media-url";
 
 export interface UploadProgress {
   loaded: number;
@@ -59,7 +60,7 @@ export async function uploadToR2(
       xhr.addEventListener('load', () => {
         if (xhr.status === 200) {
           console.log("Upload successful");
-          resolve({ success: true, url: publicUrl });
+          resolve({ success: true, url: transformToMediaCdn(publicUrl) });
         } else {
           console.error("Upload failed with status:", xhr.status);
           reject(new Error(`Upload failed with status ${xhr.status}`));

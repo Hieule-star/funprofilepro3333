@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     const r2AccessKeyId = Deno.env.get("R2_ACCESS_KEY_ID")!;
     const r2SecretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY")!;
     const r2BucketName = Deno.env.get("R2_BUCKET_NAME")!;
-    const r2PublicUrl = Deno.env.get("R2_PUBLIC_URL")!;
+    const mediaCdnUrl = Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL")!;
 
     // Generate unique filename
     const timestamp = Date.now();
@@ -164,8 +164,8 @@ Deno.serve(async (req) => {
     queryParams.append("X-Amz-Signature", signature);
     const presignedUrl = `${r2Endpoint}/${r2BucketName}/${uniqueFileName}?${queryParams.toString()}`;
 
-    // Build expected public URL (for client to use after confirming upload)
-    const expectedPublicUrl = `${r2PublicUrl}/${uniqueFileName}`;
+    // Build expected public URL using CDN domain (for client to use after confirming upload)
+    const expectedPublicUrl = `${mediaCdnUrl}/${uniqueFileName}`;
     
     console.log(`Created media asset ${mediaAsset.id} for user ${user.id}, file: ${fileName}`);
 
