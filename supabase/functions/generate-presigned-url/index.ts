@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
     const accessKeyId = Deno.env.get("R2_ACCESS_KEY_ID") || "";
     const secretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY") || "";
     const bucketName = Deno.env.get("R2_BUCKET_NAME") || "";
-    const mediaCdnUrl = Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL") || "";
+    const mediaCdnUrl = (Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
 
     if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName || !mediaCdnUrl) {
       console.error("Missing R2 configuration");

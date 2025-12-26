@@ -71,12 +71,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build the public URL using CDN domain
-    const mediaCdnUrl = Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL")!;
+    // Build the public URL using CDN domain (normalize to remove trailing slash)
+    const mediaCdnUrl = (Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
     const publicUrl = `${mediaCdnUrl}/${asset.r2_key}`;
     
     // Use R2 URL for verification (HEAD request to check file exists)
-    const r2PublicUrl = Deno.env.get("R2_PUBLIC_URL")!;
+    const r2PublicUrl = (Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
     const r2VerifyUrl = `${r2PublicUrl}/${asset.r2_key}`;
 
     // Verify file exists on R2 by making HEAD request (use R2 URL for verification)
