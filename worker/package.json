@@ -1,0 +1,16 @@
+{
+  "name": "media-gateway",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker làm CDN gateway cho R2 bucket fun-media",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^3.93.0"
+  }
+}
