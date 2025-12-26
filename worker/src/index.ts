@@ -19,6 +19,7 @@ const CACHE_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Range',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
 };
 
 export default {
@@ -75,8 +76,29 @@ export default {
     */
 
     try {
-      // Lấy object từ R2
-      const object = await env.MEDIA_BUCKET.get(key);
+      // Parse Range header first (for video streaming)
+      const rangeHeader = request.headers.get('Range');
+      let rangeOptions: { offset: number; length?: number } | undefined;
+      let requestedStart = 0;
+      let requestedEnd: number | undefined;
+
+      if (rangeHeader) {
+        const match = rangeHeader.match(/bytes=(\d*)-(\d*)/);
+        if (match) {
+          requestedStart = match[1] ? parseInt(match[1]) : 0;
+          requestedEnd = match[2] ? parseInt(match[2]) : undefined;
+          
+          rangeOptions = {
+            offset: requestedStart,
+            length: requestedEnd !== undefined ? requestedEnd - requestedStart + 1 : undefined,
+          };
+        }
+      }
+
+      // Lấy object từ R2 với range option (nếu có)
+      const object = rangeOptions 
+        ? await env.MEDIA_BUCKET.get(key, { range: rangeOptions })
+        : await env.MEDIA_BUCKET.get(key);
 
       if (!object) {
         return new Response('Not Found', { 
@@ -98,26 +120,34 @@ export default {
         headers.set('ETag', object.httpEtag);
       }
 
-      // Content-Length
-      headers.set('Content-Length', object.size.toString());
-      
       // Preserve http metadata (content-type, content-disposition, etc.)
       object.writeHttpMetadata(headers);
 
       // Accept-Ranges cho video streaming
       headers.set('Accept-Ranges', 'bytes');
 
-      // HEAD request chỉ trả headers
+      // HEAD request chỉ trả headers với full size
       if (request.method === 'HEAD') {
+        headers.set('Content-Length', object.size.toString());
         return new Response(null, { headers });
       }
 
-      // Handle Range requests cho video streaming
-      const range = request.headers.get('Range');
-      if (range) {
-        return handleRangeRequest(object, range, headers);
+      // Handle Range response
+      if (rangeOptions && 'range' in object && object.range) {
+        const range = object.range as { offset: number; length: number };
+        const actualEnd = range.offset + range.length - 1;
+        
+        headers.set('Content-Range', `bytes ${range.offset}-${actualEnd}/${object.size}`);
+        headers.set('Content-Length', range.length.toString());
+
+        return new Response(object.body, {
+          status: 206,
+          headers,
+        });
       }
 
+      // Normal full response
+      headers.set('Content-Length', object.size.toString());
       return new Response(object.body, { headers });
     } catch (error) {
       console.error('Error fetching from R2:', error);
@@ -128,47 +158,6 @@ export default {
     }
   },
 };
-
-/**
- * Handle HTTP Range requests cho video streaming
- */
-async function handleRangeRequest(
-  object: R2ObjectBody,
-  range: string,
-  baseHeaders: Headers
-): Promise<Response> {
-  const size = object.size;
-  const match = range.match(/bytes=(\d*)-(\d*)/);
-  
-  if (!match) {
-    return new Response('Invalid Range', { status: 416 });
-  }
-
-  let start = match[1] ? parseInt(match[1]) : 0;
-  let end = match[2] ? parseInt(match[2]) : size - 1;
-
-  // Validate range
-  if (start >= size || end >= size || start > end) {
-    baseHeaders.set('Content-Range', `bytes */${size}`);
-    return new Response('Range Not Satisfiable', { 
-      status: 416,
-      headers: baseHeaders,
-    });
-  }
-
-  const contentLength = end - start + 1;
-  
-  baseHeaders.set('Content-Range', `bytes ${start}-${end}/${size}`);
-  baseHeaders.set('Content-Length', contentLength.toString());
-
-  // Slice the body để lấy đúng range
-  const slicedBody = object.body.slice(start, end + 1);
-
-  return new Response(slicedBody as unknown as BodyInit, {
-    status: 206,
-    headers: baseHeaders,
-  });
-}
 
 /**
  * Helper function để check xem key có phải là image không
