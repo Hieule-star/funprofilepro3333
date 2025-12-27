@@ -89,6 +89,7 @@ export default function CreatePost() {
       // Format media data
       const mediaData = media.map(m => ({
         url: m.url,
+        originUrl: m.originUrl,
         type: m.type,
         mediaAssetId: m.mediaAssetId
       })).filter(m => m.url);
@@ -99,7 +100,7 @@ export default function CreatePost() {
         .insert({
           user_id: user.id,
           content: content.trim() || null,
-          media: mediaData.map(m => ({ url: m.url, type: m.type })),
+          media: mediaData.map(m => ({ url: m.url, originUrl: m.originUrl, type: m.type })),
         })
         .select('id')
         .single();

@@ -13,6 +13,8 @@ export interface MediaFile {
   preview: string;
   type: "image" | "video";
   url?: string;
+  /** Origin (R2 public) để fallback khi CDN lỗi */
+  originUrl?: string;
   mediaAssetId?: string;
   uploaded?: boolean;
 }
@@ -80,6 +82,7 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
           preview: validFile.preview,
           type: validFile.type,
           url: result.publicUrl,
+          originUrl: result.originUrl || undefined,
           mediaAssetId: result.mediaAsset?.id,
           uploaded: true,
         };

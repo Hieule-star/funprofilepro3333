@@ -17,6 +17,7 @@ import { VideoPlayer } from "@/components/ui/VideoPlayer";
 interface MediaItem {
   type: "image" | "video";
   url: string;
+  originUrl?: string;
 }
 
 interface PostProps {
@@ -197,11 +198,11 @@ export default function Post({
             {item.type === "image" ? (
               <img
                 src={transformToMediaCdn(item.url)}
-                alt={`Media ${index + 1}`}
+                alt={`Ảnh bài viết ${index + 1}`}
                 className="w-full h-auto object-contain transition-transform hover:scale-105"
               />
             ) : (
-              <VideoPlayer r2Url={transformToMediaCdn(item.url)} />
+              <VideoPlayer r2Url={transformToMediaCdn(item.url)} originUrl={item.originUrl} />
             )}
           </div>
         ))}

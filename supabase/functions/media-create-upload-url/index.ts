@@ -86,7 +86,10 @@ Deno.serve(async (req) => {
     const r2AccessKeyId = Deno.env.get("R2_ACCESS_KEY_ID")!;
     const r2SecretAccessKey = Deno.env.get("R2_SECRET_ACCESS_KEY")!;
     const r2BucketName = Deno.env.get("R2_BUCKET_NAME")!;
-    const mediaCdnUrl = (Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
+
+    // Public bases
+    const cdnBaseUrl = (Deno.env.get("MEDIA_CDN_URL") || "").replace(/\/$/, "");
+    const originBaseUrl = (Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
 
     // Generate unique filename
     const timestamp = Date.now();
@@ -163,16 +166,20 @@ Deno.serve(async (req) => {
     queryParams.append("X-Amz-Signature", signature);
     const presignedUrl = `${r2Endpoint}/${r2BucketName}/${uniqueFileName}?${queryParams.toString()}`;
 
-    // Build expected public URL using CDN domain
-    const expectedPublicUrl = `${mediaCdnUrl}/${uniqueFileName}`;
-    
+    // Build both URLs so the client can fallback if CDN fails
+    const cdnUrl = cdnBaseUrl ? `${cdnBaseUrl}/${uniqueFileName}` : "";
+    const originUrl = originBaseUrl ? `${originBaseUrl}/${uniqueFileName}` : "";
+    const publicUrl = cdnUrl || originUrl;
+
     console.log(`[Simple Media] Created asset ${mediaAsset.id} for user ${user.id}, file: ${fileName}`);
 
     return new Response(JSON.stringify({
       success: true,
       uploadUrl: presignedUrl,
       mediaAssetId: mediaAsset.id,
-      publicUrl: expectedPublicUrl,
+      publicUrl,
+      cdnUrl: cdnUrl || null,
+      originUrl: originUrl || null,
       r2Key: uniqueFileName,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }

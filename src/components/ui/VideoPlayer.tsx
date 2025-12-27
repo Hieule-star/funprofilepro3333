@@ -1,39 +1,83 @@
-import { useState, useRef, useEffect } from "react";
-import { AlertCircle, Download, ExternalLink } from "lucide-react";
+import { useMemo, useRef, useEffect, useState } from "react";
+import { AlertCircle, Download, ExternalLink, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
 interface VideoPlayerProps {
+  /** URL ưu tiên để phát (thường là CDN) */
   r2Url: string;
+  /** Origin (R2 public) để fallback khi CDN lỗi */
+  originUrl?: string;
   poster?: string;
   className?: string;
 }
 
 /**
  * Simple Video Player component
- * Uses native HTML5 video with R2/CDN URL for direct playback
+ * - Thử phát bằng CDN trước
+ * - Nếu lỗi network/404 do CDN thì fallback qua originUrl (nếu có)
+ * - Nếu vẫn lỗi thì hiển thị hướng dẫn + debug info (thường là lỗi codec/encode)
  */
-export function VideoPlayer({
-  r2Url,
-  poster,
-  className,
-}: VideoPlayerProps) {
-  const [error, setError] = useState(false);
+export function VideoPlayer({ r2Url, originUrl, poster, className }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  // Reset error state when URL changes
+  const [activeUrl, setActiveUrl] = useState(r2Url);
+  const [error, setError] = useState(false);
+  const [lastErrorCode, setLastErrorCode] = useState<number | null>(null);
+
+  // Reset when URL changes
   useEffect(() => {
+    setActiveUrl(r2Url);
     setError(false);
+    setLastErrorCode(null);
   }, [r2Url]);
 
-  // Handle video error
-  const handleError = () => {
-    console.warn("[VideoPlayer] Failed to load video:", r2Url);
+  const debugInfo = useMemo(() => {
+    const el = videoRef.current;
+    return {
+      activeUrl,
+      originUrl: originUrl || null,
+      networkState: el?.networkState ?? null,
+      readyState: el?.readyState ?? null,
+      errorCode: lastErrorCode,
+    };
+  }, [activeUrl, originUrl, lastErrorCode]);
+
+  const copyDebug = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(debugInfo, null, 2));
+    } catch {
+      // noop
+    }
+  };
+
+  const handleError = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+    const el = e.currentTarget;
+    const code = el.error?.code ?? null;
+
+    console.warn("[VideoPlayer] Video error", {
+      url: activeUrl,
+      originUrl,
+      code,
+      networkState: el.networkState,
+      readyState: el.readyState,
+    });
+
+    setLastErrorCode(code);
+
+    // If CDN failed, try origin once
+    if (originUrl && activeUrl !== originUrl) {
+      setActiveUrl(originUrl);
+      return;
+    }
+
     setError(true);
   };
 
-  // Error state - show download options
+  // Error state
   if (error) {
+    const isDecodeLike = lastErrorCode === 3 || lastErrorCode === 4; // MEDIA_ERR_DECODE / SRC_NOT_SUPPORTED
+
     return (
       <div className={cn("relative bg-muted rounded-lg overflow-hidden", className)}>
         <div className="aspect-video flex flex-col items-center justify-center gap-4 p-4">
@@ -41,38 +85,45 @@ export function VideoPlayer({
           <div className="text-center">
             <p className="text-sm font-medium">Không thể phát video</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Video này có thể không tương thích với trình duyệt của bạn
+              {isDecodeLike
+                ? "Có thể video đang dùng codec không hỗ trợ (ví dụ HEVC/H.265)."
+                : "Có thể CDN/origin đang lỗi hoặc trình duyệt không tải được."}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open(r2Url, "_blank")}
-            >
+
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.open(activeUrl, "_blank")}
+              aria-label="Tải video xuống">
               <Download className="h-4 w-4 mr-1" />
               Tải xuống
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.open(r2Url, "_blank")}
-            >
+            <Button variant="ghost" size="sm" onClick={() => window.open(activeUrl, "_blank")}
+              aria-label="Mở link video">
               <ExternalLink className="h-4 w-4 mr-1" />
               Mở link
             </Button>
+            <Button variant="ghost" size="sm" onClick={copyDebug} aria-label="Copy debug info">
+              <Copy className="h-4 w-4 mr-1" />
+              Copy debug
+            </Button>
           </div>
+
+          {isDecodeLike && (
+            <p className="text-xs text-muted-foreground text-center max-w-sm">
+              Gợi ý: nếu quay bằng iPhone, hãy đặt Camera → Formats → <b>Most Compatible</b> rồi upload lại.
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
-  // Normal video playback
+  // Normal playback
   return (
     <div className={cn("relative bg-black rounded-lg overflow-hidden", className)}>
       <video
         ref={videoRef}
-        src={r2Url}
+        src={activeUrl}
         poster={poster}
         controls
         playsInline

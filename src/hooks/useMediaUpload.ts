@@ -20,7 +20,12 @@ export interface UploadProgress {
 export interface UploadResult {
   success: boolean;
   mediaAsset?: MediaAsset;
+  /** URL ưu tiên để hiển thị (thường là CDN) */
   publicUrl?: string;
+  /** URL CDN (nếu có) */
+  cdnUrl?: string | null;
+  /** URL origin (R2 public) để fallback (nếu có) */
+  originUrl?: string | null;
   error?: string;
 }
 
@@ -69,7 +74,7 @@ export function useMediaUpload() {
         throw new Error(createData?.error || 'Không thể tạo URL upload');
       }
 
-      const { uploadUrl, publicUrl, mediaAssetId } = createData;
+      const { uploadUrl, publicUrl, mediaAssetId, cdnUrl, originUrl } = createData;
 
       // Step 2: Upload file directly to R2 using presigned URL
       await new Promise<void>((resolve, reject) => {
@@ -124,6 +129,10 @@ export function useMediaUpload() {
 
       console.log('[MediaUpload] Upload confirmed successfully');
 
+      const confirmedCdnUrl = (confirmData?.cdnUrl ?? cdnUrl) ?? null;
+      const confirmedOriginUrl = (confirmData?.originUrl ?? originUrl) ?? null;
+      const bestPublicUrl = (confirmData?.publicUrl ?? confirmedCdnUrl ?? confirmedOriginUrl ?? publicUrl) as string;
+
       // Fetch the created media asset
       const { data: mediaAsset } = await supabase
         .from('media_assets')
@@ -137,7 +146,9 @@ export function useMediaUpload() {
       return {
         success: true,
         mediaAsset: mediaAsset as MediaAsset,
-        publicUrl: transformToMediaCdn(publicUrl),
+        publicUrl: transformToMediaCdn(bestPublicUrl),
+        cdnUrl: confirmedCdnUrl,
+        originUrl: confirmedOriginUrl,
       };
     } catch (err: any) {
       const errorMessage = err.message || 'Upload failed';
