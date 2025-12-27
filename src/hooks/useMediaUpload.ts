@@ -2,25 +2,13 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { transformToMediaCdn } from '@/lib/media-url';
 
-export type PinStatus = 'pending' | 'pinning' | 'pinned' | 'failed' | 'unpinned';
-export type StreamStatus = 'pending' | 'processing' | 'ready' | 'error' | null;
-
 export interface MediaAsset {
   id: string;
   type: 'image' | 'video';
   mime: string;
   size: number;
   r2_url: string | null;
-  ipfs_cid: string | null;
-  ipfs_gateway_url: string | null;
-  pin_status: PinStatus;
-  pin_attempts: number;
-  last_pin_error: string | null;
   original_filename: string | null;
-  // Cloudflare Stream fields
-  stream_id: string | null;
-  stream_playback_url: string | null;
-  stream_status: StreamStatus;
 }
 
 export interface UploadProgress {
@@ -42,7 +30,7 @@ export function useMediaUpload() {
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Upload a file using Hybrid Storage (R2 + IPFS)
+   * Upload a file to R2 storage via CDN
    */
   const uploadFile = useCallback(async (
     file: File,
@@ -60,11 +48,7 @@ export function useMediaUpload() {
         throw new Error('File quá lớn. Kích thước tối đa là 4GB.');
       }
 
-      // Determine media type
-      const isVideo = file.type.startsWith('video/');
-      const mediaType = isVideo ? 'video' : 'image';
-
-      // Step 1: Get presigned URL from media-create-upload-url Edge Function
+      // Step 1: Get presigned URL from Edge Function
       const { data: createData, error: createError } = await supabase.functions.invoke(
         'media-create-upload-url',
         {
@@ -73,7 +57,6 @@ export function useMediaUpload() {
             fileType: file.type,
             fileSize: file.size,
             folder: folder,
-            mediaType: mediaType,
           },
         }
       );
@@ -120,34 +103,31 @@ export function useMediaUpload() {
         xhr.send(file);
       });
 
-      // Step 3: Confirm upload and trigger IPFS pinning
-      console.log('Confirming R2 upload for media asset:', mediaAssetId);
+      // Step 3: Confirm upload
+      console.log('[MediaUpload] Confirming upload:', mediaAssetId);
       const { data: confirmData, error: confirmError } = await supabase.functions.invoke(
         'media-confirm-upload',
         {
-          body: {
-            mediaAssetId: mediaAssetId,
-            triggerIpfsPin: true,
-          },
+          body: { mediaAssetId },
         }
       );
 
       if (confirmError) {
-        console.error('Failed to confirm upload:', confirmError);
+        console.error('[MediaUpload] Failed to confirm:', confirmError);
         throw new Error(confirmError.message || 'Failed to confirm upload');
       }
 
       if (!confirmData?.success) {
-        console.error('Upload confirmation failed:', confirmData?.error);
+        console.error('[MediaUpload] Confirmation failed:', confirmData?.error);
         throw new Error(confirmData?.error || 'Upload confirmation failed');
       }
 
-      console.log('Upload confirmed successfully, IPFS pinning triggered');
+      console.log('[MediaUpload] Upload confirmed successfully');
 
       // Fetch the created media asset
       const { data: mediaAsset } = await supabase
         .from('media_assets')
-        .select('*')
+        .select('id, type, mime, size, r2_url, original_filename')
         .eq('id', mediaAssetId)
         .single();
 
@@ -169,33 +149,12 @@ export function useMediaUpload() {
   }, []);
 
   /**
-   * Retry IPFS pinning for a specific media asset
-   */
-  const retryPin = useCallback(async (mediaAssetId: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('media-pin-to-ipfs', {
-        body: { mediaAssetId },
-      });
-
-      if (error) {
-        console.error('Retry pin failed:', error);
-        return false;
-      }
-
-      return data?.success || false;
-    } catch (err) {
-      console.error('Retry pin error:', err);
-      return false;
-    }
-  }, []);
-
-  /**
    * Get media asset by ID
    */
   const getMediaAsset = useCallback(async (mediaAssetId: string): Promise<MediaAsset | null> => {
     const { data, error } = await supabase
       .from('media_assets')
-      .select('*')
+      .select('id, type, mime, size, r2_url, original_filename')
       .eq('id', mediaAssetId)
       .single();
 
@@ -213,7 +172,7 @@ export function useMediaUpload() {
   const getMediaByPostId = useCallback(async (postId: string): Promise<MediaAsset[]> => {
     const { data, error } = await supabase
       .from('media_assets')
-      .select('*')
+      .select('id, type, mime, size, r2_url, original_filename')
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
@@ -227,7 +186,6 @@ export function useMediaUpload() {
 
   return {
     uploadFile,
-    retryPin,
     getMediaAsset,
     getMediaByPostId,
     uploading,
