@@ -588,6 +588,9 @@ export type Database = {
           size: number
           stream_id: string | null
           stream_playback_url: string | null
+          stream_status:
+            | Database["public"]["Enums"]["stream_status_type"]
+            | null
           type: Database["public"]["Enums"]["media_type"]
           updated_at: string | null
         }
@@ -611,6 +614,9 @@ export type Database = {
           size: number
           stream_id?: string | null
           stream_playback_url?: string | null
+          stream_status?:
+            | Database["public"]["Enums"]["stream_status_type"]
+            | null
           type: Database["public"]["Enums"]["media_type"]
           updated_at?: string | null
         }
@@ -634,6 +640,9 @@ export type Database = {
           size?: number
           stream_id?: string | null
           stream_playback_url?: string | null
+          stream_status?:
+            | Database["public"]["Enums"]["stream_status_type"]
+            | null
           type?: Database["public"]["Enums"]["media_type"]
           updated_at?: string | null
         }
@@ -1209,6 +1218,7 @@ export type Database = {
       app_role: "admin" | "moderator" | "user"
       media_type: "image" | "video"
       pin_status_type: "pending" | "pinning" | "pinned" | "failed" | "unpinned"
+      stream_status_type: "pending" | "processing" | "ready" | "error"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1339,6 +1349,7 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       media_type: ["image", "video"],
       pin_status_type: ["pending", "pinning", "pinned", "failed", "unpinned"],
+      stream_status_type: ["pending", "processing", "ready", "error"],
     },
   },
 } as const

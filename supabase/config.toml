@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.media-confirm-upload]
 verify_jwt = true
+
+[functions.media-stream-ingest]
+verify_jwt = false
+
+[functions.media-stream-status]
+verify_jwt = false

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { transformToMediaCdn } from '@/lib/media-url';
 
 export type PinStatus = 'pending' | 'pinning' | 'pinned' | 'failed' | 'unpinned';
+export type StreamStatus = 'pending' | 'processing' | 'ready' | 'error' | null;
 
 export interface MediaAsset {
   id: string;
@@ -16,6 +17,10 @@ export interface MediaAsset {
   pin_attempts: number;
   last_pin_error: string | null;
   original_filename: string | null;
+  // Cloudflare Stream fields
+  stream_id: string | null;
+  stream_playback_url: string | null;
+  stream_status: StreamStatus;
 }
 
 export interface UploadProgress {
