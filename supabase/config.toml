@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.media-stream-status]
 verify_jwt = false
+
+[functions.media-stream-retry]
+verify_jwt = true

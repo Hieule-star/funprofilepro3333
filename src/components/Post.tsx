@@ -306,6 +306,7 @@ export default function Post({
                 streamPlaybackUrl={item.streamPlaybackUrl}
                 streamId={item.streamId}
                 streamStatus={item.streamStatus}
+                mediaAssetId={item.mediaAssetId}
               />
             )}
             
