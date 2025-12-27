@@ -81,19 +81,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!asset.r2_url) {
+    // Build the video URL from R2_PUBLIC_URL + r2_key (NOT the CDN/Worker URL)
+    const r2PublicUrl = (Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
+    
+    if (!r2PublicUrl || !asset.r2_key) {
       return new Response(
-        JSON.stringify({ error: "Video has no R2 URL" }),
+        JSON.stringify({ error: "Missing R2 configuration or r2_key" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`[Stream Retry] Video URL: ${asset.r2_url}`);
+    // Always use direct R2 public URL (r2.dev domain) - NOT the CDN/Worker URL
+    const videoUrl = `${r2PublicUrl}/${asset.r2_key}`;
+    console.log(`[Stream Retry] Using direct R2 URL: ${videoUrl}`);
 
-    // Update status to processing
+    // Update status to processing and clear any previous error
     await supabase
       .from("media_assets")
-      .update({ stream_status: "processing" })
+      .update({ stream_status: "processing", last_pin_error: null })
       .eq("id", mediaAssetId);
 
     // Call Cloudflare Stream API to copy the video
@@ -106,7 +111,7 @@ Deno.serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          url: asset.r2_url,
+          url: videoUrl,
           meta: {
             name: asset.original_filename || `video-${mediaAssetId}`,
             mediaAssetId: mediaAssetId,

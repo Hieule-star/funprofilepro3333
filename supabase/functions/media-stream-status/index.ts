@@ -136,16 +136,18 @@ Deno.serve(async (req) => {
           console.log(`[Stream Status] Video ready: ${asset.id}`);
           updatedCount++;
         } else if (status?.state === "error") {
-          // Video processing failed
+          // Video processing failed - store the error reason for debugging
+          const errorReason = status.errorReasonText || status.errorReasonCode || "Unknown error";
           await supabase
             .from("media_assets")
             .update({
               stream_status: "error",
+              last_pin_error: `Stream Error: ${errorReason}`,
               updated_at: new Date().toISOString(),
             })
             .eq("id", asset.id);
 
-          console.error(`[Stream Status] Video error: ${asset.id} - ${status.errorReasonText}`);
+          console.error(`[Stream Status] Video error: ${asset.id} - ${errorReason}`);
           errorCount++;
         } else {
           console.log(`[Stream Status] Still processing: ${asset.id} - ${status?.pctComplete || "0"}%`);
