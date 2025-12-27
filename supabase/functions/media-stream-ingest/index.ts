@@ -131,15 +131,34 @@ Deno.serve(async (req) => {
       .update({ stream_status: "processing" })
       .eq("id", mediaAssetId);
 
-    // Get Cloudflare Stream credentials
-    const cfAccountId = Deno.env.get("CF_ACCOUNT_ID");
-    const cfApiToken = Deno.env.get("CF_STREAM_API_TOKEN");
+    // Get Cloudflare Stream credentials - priority: admin_settings > env vars
+    let cfAccountId = Deno.env.get("CF_ACCOUNT_ID");
+    let cfApiToken = Deno.env.get("CF_STREAM_API_TOKEN");
+
+    // Try to get from admin_settings first
+    const { data: configData } = await supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", "cloudflare_stream_config")
+      .single();
+
+    if (configData?.value) {
+      const config = configData.value as { accountId: string; apiToken: string };
+      if (config.accountId && config.apiToken) {
+        cfAccountId = config.accountId;
+        cfApiToken = config.apiToken;
+        console.log("[Stream Ingest] Using config from admin_settings");
+      }
+    }
 
     if (!cfAccountId || !cfApiToken) {
       console.error("[Stream Ingest] Missing Cloudflare Stream credentials");
       await supabase
         .from("media_assets")
-        .update({ stream_status: "error" })
+        .update({ 
+          stream_status: "error",
+          last_pin_error: "Missing Cloudflare Stream credentials"
+        })
         .eq("id", mediaAssetId);
       return new Response(JSON.stringify({ error: "Missing Stream credentials" }), {
         status: 500,

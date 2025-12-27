@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.media-stream-retry]
 verify_jwt = true
+
+[functions.admin-cloudflare-stream-config]
+verify_jwt = true

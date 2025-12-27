@@ -8,6 +8,7 @@ import BalanceChart from "@/components/admin/BalanceChart";
 import AlertsList from "@/components/admin/AlertsList";
 import ClaimsTable from "@/components/admin/ClaimsTable";
 import SettingsPanel from "@/components/admin/SettingsPanel";
+import CloudflareStreamConfig from "@/components/admin/CloudflareStreamConfig";
 
 export default function Admin() {
   const { user, loading: authLoading } = useAuth();
@@ -74,7 +75,10 @@ export default function Admin() {
             <AlertsList />
             <ClaimsTable />
           </div>
-          <SettingsPanel />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <SettingsPanel />
+            <CloudflareStreamConfig />
+          </div>
         </div>
       </div>
     </div>
