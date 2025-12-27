@@ -1,14 +1,12 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
-import { Image, Video, X, Upload, AlertCircle } from "lucide-react";
+import { Video, X, Upload, Check } from "lucide-react";
 import { validateFile, formatFileSize } from "@/lib/supabase-upload";
 import { useToast } from "@/hooks/use-toast";
 import { saveMediaToDraftDirect } from "@/hooks/useDraftPost";
 import { useMediaUpload, MediaAsset, UploadProgress } from "@/hooks/useMediaUpload";
-import { MediaStatusBadge, MediaStatusIndicator } from "@/components/ui/MediaStatusBadge";
-import { supabase } from "@/integrations/supabase/client";
 
 export interface MediaFile {
   file: File;
@@ -16,9 +14,7 @@ export interface MediaFile {
   type: "image" | "video";
   url?: string;
   mediaAssetId?: string;
-  pinStatus?: MediaAsset['pin_status'];
-  ipfsCid?: string | null;
-  ipfsGatewayUrl?: string | null;
+  uploaded?: boolean;
 }
 
 interface MediaUploadProps {
@@ -32,43 +28,7 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const { uploadFile, retryPin, uploading, progress } = useMediaUpload();
-
-  // Subscribe to media_assets changes for IPFS status updates
-  useEffect(() => {
-    const mediaAssetIds = media.filter(m => m.mediaAssetId).map(m => m.mediaAssetId);
-    if (mediaAssetIds.length === 0) return;
-
-    const channel = supabase
-      .channel('media-status-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'media_assets',
-        },
-        (payload) => {
-          const updated = payload.new as MediaAsset;
-          setMedia(prev => prev.map(m => {
-            if (m.mediaAssetId === updated.id) {
-              return {
-                ...m,
-                pinStatus: updated.pin_status,
-                ipfsCid: updated.ipfs_cid,
-                ipfsGatewayUrl: updated.ipfs_gateway_url,
-              };
-            }
-            return m;
-          }));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [media.length]);
+  const { uploadFile, uploading, progress } = useMediaUpload();
 
   const handleFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -105,7 +65,7 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
       return;
     }
 
-    // Upload files using Hybrid Storage
+    // Upload files
     const uploadedFiles: MediaFile[] = [];
 
     for (const validFile of validFiles) {
@@ -121,9 +81,7 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
           type: validFile.type,
           url: result.publicUrl,
           mediaAssetId: result.mediaAsset?.id,
-          pinStatus: result.mediaAsset?.pin_status || 'pending',
-          ipfsCid: result.mediaAsset?.ipfs_cid,
-          ipfsGatewayUrl: result.mediaAsset?.ipfs_gateway_url,
+          uploaded: true,
         };
         uploadedFiles.push(mediaFile);
 
@@ -150,7 +108,7 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
     if (uploadedFiles.length > 0) {
       toast({
         title: "Upload thành công",
-        description: `Đã upload ${uploadedFiles.length} file (IPFS đang xử lý)`,
+        description: `Đã upload ${uploadedFiles.length} file`,
       });
     }
   };
@@ -195,22 +153,6 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
     fileInputRef.current?.click();
   };
 
-  const handleRetryPin = async (mediaAssetId: string) => {
-    const success = await retryPin(mediaAssetId);
-    if (success) {
-      toast({
-        title: "Đang thử lại",
-        description: "IPFS pinning đang được xử lý lại",
-      });
-    } else {
-      toast({
-        title: "Lỗi",
-        description: "Không thể thử lại IPFS pinning",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="space-y-4">
       {/* Upload Area */}
@@ -248,10 +190,7 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
               </button>
             </p>
             <p className="text-xs text-muted-foreground">
-              Hỗ trợ JPG, PNG, GIF, WebP, MP4, WebM (Tối đa 4000 MB)
-            </p>
-            <p className="text-xs text-primary mt-1">
-              🌐 Media sẽ được lưu trữ vĩnh viễn trên IPFS
+              Hỗ trợ JPG, PNG, GIF, WebP, MP4, WebM (Tối đa 4GB)
             </p>
           </div>
         </div>
@@ -290,10 +229,10 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
                 </div>
               )}
               
-              {/* IPFS Status Indicator */}
-              {item.pinStatus && (
-                <div className="absolute left-2 top-2">
-                  <MediaStatusIndicator pinStatus={item.pinStatus} />
+              {/* Upload status indicator */}
+              {item.uploaded && (
+                <div className="absolute left-2 top-2 rounded-full bg-green-500 p-1">
+                  <Check className="h-3 w-3 text-white" />
                 </div>
               )}
               
@@ -306,29 +245,14 @@ export default function MediaUpload({ onMediaChange, maxFiles = 4, initialMedia 
                 <X className="h-4 w-4" />
               </button>
 
-              {/* File info overlay with IPFS status */}
+              {/* File info overlay */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 transition-opacity group-hover:opacity-100">
                 <p className="text-xs text-white truncate">
                   {item.file.name}
                 </p>
-                <div className="flex items-center justify-between mt-1">
-                  <p className="text-xs text-white/70">
-                    {formatFileSize(item.file.size)}
-                  </p>
-                  {item.pinStatus && item.mediaAssetId && (
-                    <MediaStatusBadge
-                      pinStatus={item.pinStatus}
-                      ipfsCid={item.ipfsCid}
-                      ipfsGatewayUrl={item.ipfsGatewayUrl}
-                      onRetry={item.pinStatus === 'failed' 
-                        ? () => handleRetryPin(item.mediaAssetId!)
-                        : undefined
-                      }
-                      showLabel={false}
-                      size="sm"
-                    />
-                  )}
-                </div>
+                <p className="text-xs text-white/70">
+                  {formatFileSize(item.file.size)}
+                </p>
               </div>
             </div>
           ))}

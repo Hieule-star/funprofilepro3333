@@ -27,25 +27,7 @@ verify_jwt = false
 [functions.media-create-upload-url]
 verify_jwt = true
 
-[functions.media-pin-to-ipfs]
-verify_jwt = false
-
-[functions.media-unpin-ipfs]
-verify_jwt = true
-
-[functions.media-pin-scheduler]
-verify_jwt = false
-
 [functions.media-confirm-upload]
-verify_jwt = true
-
-[functions.media-stream-ingest]
-verify_jwt = false
-
-[functions.media-stream-status]
-verify_jwt = false
-
-[functions.media-stream-retry]
 verify_jwt = true
 
 [functions.admin-cloudflare-stream-config]
