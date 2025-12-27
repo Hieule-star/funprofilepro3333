@@ -115,20 +115,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get the video URL from R2
-    const videoUrl = asset.r2_url;
-    if (!videoUrl) {
-      console.error(`[Stream Ingest] No R2 URL for asset: ${mediaAssetId}`);
-      return new Response(JSON.stringify({ error: "No R2 URL available" }), {
+    // Build the video URL from R2_PUBLIC_URL + r2_key (NOT the CDN/Worker URL)
+    // This is critical because Cloudflare Stream needs direct access to the R2 file
+    const r2PublicUrl = (Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
+    
+    if (!r2PublicUrl || !asset.r2_key) {
+      console.error(`[Stream Ingest] Missing R2_PUBLIC_URL or r2_key for asset: ${mediaAssetId}`);
+      return new Response(JSON.stringify({ error: "Missing R2 configuration or r2_key" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    // Always use direct R2 public URL (r2.dev domain) - NOT the CDN/Worker URL
+    const videoUrl = `${r2PublicUrl}/${asset.r2_key}`;
+    console.log(`[Stream Ingest] Using direct R2 URL for Stream: ${videoUrl}`);
+
     // Update status to processing
     await supabase
       .from("media_assets")
-      .update({ stream_status: "processing" })
+      .update({ stream_status: "processing", last_pin_error: null })
       .eq("id", mediaAssetId);
 
     // Get Cloudflare Stream credentials - priority: admin_settings > env vars

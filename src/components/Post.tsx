@@ -27,6 +27,7 @@ interface MediaItem {
   streamId?: string | null;
   streamPlaybackUrl?: string | null;
   streamStatus?: StreamStatus;
+  streamError?: string | null; // Error message from last_pin_error
 }
 
 interface PostProps {
@@ -90,6 +91,7 @@ export default function Post({
               streamId: asset.stream_id,
               streamPlaybackUrl: asset.stream_playback_url,
               streamStatus: asset.stream_status,
+              streamError: asset.last_pin_error, // Stream error from last_pin_error field
             };
           }
           return m;
@@ -128,6 +130,7 @@ export default function Post({
                 streamId: updated.stream_id,
                 streamPlaybackUrl: updated.stream_playback_url,
                 streamStatus: updated.stream_status,
+                streamError: updated.last_pin_error, // Stream error
               };
             }
             return m;
@@ -306,6 +309,7 @@ export default function Post({
                 streamPlaybackUrl={item.streamPlaybackUrl}
                 streamId={item.streamId}
                 streamStatus={item.streamStatus}
+                streamError={item.streamError}
                 mediaAssetId={item.mediaAssetId}
               />
             )}

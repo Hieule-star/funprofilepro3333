@@ -71,20 +71,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Build the public URL using CDN domain (normalize to remove trailing slash)
-    const mediaCdnUrl = (Deno.env.get("MEDIA_CDN_URL") || Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
-    const publicUrl = `${mediaCdnUrl}/${asset.r2_key}`;
-    
-    // Use R2 URL for verification (HEAD request to check file exists)
+    // Build URLs:
+    // - r2_url: direct R2 public URL (r2.dev) - used by Cloudflare Stream for ingestion
+    // - publicUrl (returned to client): CDN URL for fast delivery to users
     const r2PublicUrl = (Deno.env.get("R2_PUBLIC_URL") || "").replace(/\/$/, "");
-    const r2VerifyUrl = `${r2PublicUrl}/${asset.r2_key}`;
-
-    // Verify file exists on R2 by making HEAD request (use R2 URL for verification)
-    console.log(`Verifying file exists on R2: ${r2VerifyUrl}`);
-    const headResponse = await fetch(r2VerifyUrl, { method: "HEAD" });
+    const mediaCdnUrl = (Deno.env.get("MEDIA_CDN_URL") || r2PublicUrl).replace(/\/$/, "");
+    
+    // The R2 direct URL (stored in DB for Stream ingest)
+    const r2DirectUrl = `${r2PublicUrl}/${asset.r2_key}`;
+    // The CDN URL (returned to client for playback)
+    const cdnUrl = `${mediaCdnUrl}/${asset.r2_key}`;
+    
+    // Verify file exists on R2 by making HEAD request
+    console.log(`Verifying file exists on R2: ${r2DirectUrl}`);
+    const headResponse = await fetch(r2DirectUrl, { method: "HEAD" });
     
     if (!headResponse.ok) {
-      console.error(`File not found on R2: ${r2VerifyUrl} - Status: ${headResponse.status}`);
+      console.error(`File not found on R2: ${r2DirectUrl} - Status: ${headResponse.status}`);
       return new Response(JSON.stringify({ 
         error: "File not found on R2. Upload may have failed.",
         status: headResponse.status
@@ -93,11 +96,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update media asset with confirmed r2_url
+    // Update media asset with R2 direct URL (NOT CDN URL)
+    // This is critical for Cloudflare Stream to be able to download the video
     const { error: updateError } = await supabase
       .from("media_assets")
       .update({ 
-        r2_url: publicUrl,
+        r2_url: r2DirectUrl,  // Store direct R2 URL for Stream ingest
         updated_at: new Date().toISOString()
       })
       .eq("id", mediaAssetId);
@@ -109,7 +113,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Confirmed upload for media asset ${mediaAssetId}, r2_url: ${publicUrl}`);
+    console.log(`Confirmed upload for media asset ${mediaAssetId}, r2_url: ${r2DirectUrl}, cdn: ${cdnUrl}`);
 
     // Trigger IPFS pinning if requested
     if (triggerIpfsPin) {
@@ -150,7 +154,8 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      publicUrl,
+      publicUrl: cdnUrl,  // Return CDN URL for client playback
+      r2Url: r2DirectUrl, // Also return R2 URL for debugging
       message: "Upload confirmed successfully",
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" }

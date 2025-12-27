@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useStreamStatusPolling } from "@/hooks/useStreamStatusPolling";
 
 export type StreamStatus = "pending" | "processing" | "ready" | "error" | null;
 
@@ -13,6 +14,8 @@ interface VideoPlayerProps {
   streamId?: string | null;
   streamStatus?: StreamStatus;
   mediaAssetId?: string | null;
+  streamError?: string | null; // Error message from last_pin_error
+  enablePolling?: boolean; // Enable automatic polling for processing videos
   poster?: string;
   className?: string;
 }
@@ -27,8 +30,10 @@ export function VideoPlayer({
   r2Url,
   streamPlaybackUrl,
   streamId,
-  streamStatus,
+  streamStatus: propStreamStatus,
   mediaAssetId,
+  streamError: propStreamError,
+  enablePolling = true,
   poster,
   className,
 }: VideoPlayerProps) {
@@ -37,8 +42,24 @@ export function VideoPlayer({
   const [retrying, setRetrying] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Use polling hook for processing videos
+  const {
+    streamStatus: polledStatus,
+    streamPlaybackUrl: polledPlaybackUrl,
+    streamError: polledError,
+    isPolling,
+  } = useStreamStatusPolling(
+    enablePolling ? mediaAssetId : null,
+    propStreamStatus
+  );
+
+  // Use polled values if polling is active, otherwise use props
+  const streamStatus = enablePolling && polledStatus ? polledStatus : propStreamStatus;
+  const effectiveStreamPlaybackUrl = enablePolling && polledPlaybackUrl ? polledPlaybackUrl : streamPlaybackUrl;
+  const streamError = enablePolling && polledError ? polledError : propStreamError;
+
   // Determine which player to use
-  const isStreamReady = streamStatus === "ready" && streamPlaybackUrl;
+  const isStreamReady = streamStatus === "ready" && effectiveStreamPlaybackUrl;
   const isStreamProcessing = streamStatus === "processing";
   const isStreamError = streamStatus === "error";
   const shouldUseStream = isStreamReady && !useNativeFallback;
@@ -46,13 +67,13 @@ export function VideoPlayer({
   // Build embed URL from stream ID if needed
   const embedUrl = streamId 
     ? `https://iframe.cloudflarestream.com/${streamId}?poster=${poster || ''}&controls=true&autoplay=false`
-    : streamPlaybackUrl;
+    : effectiveStreamPlaybackUrl;
 
   // Reset states when URLs change
   useEffect(() => {
     setUseNativeFallback(false);
     setNativeError(false);
-  }, [r2Url, streamPlaybackUrl]);
+  }, [r2Url, effectiveStreamPlaybackUrl]);
 
   // Handle native video error
   const handleNativeError = () => {
@@ -103,6 +124,12 @@ export function VideoPlayer({
             <p className="text-xs text-muted-foreground mt-1">
               Video đang được tối ưu hóa để phát mượt mà hơn
             </p>
+            {isPolling && (
+              <p className="text-xs text-primary/70 mt-2 flex items-center justify-center gap-1">
+                <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                Đang kiểm tra trạng thái...
+              </p>
+            )}
           </div>
         </div>
         {/* Show fallback option */}
@@ -161,11 +188,17 @@ export function VideoPlayer({
         </video>
         {/* Show status badge if Stream had error */}
         {isStreamError && mediaAssetId && (
-          <div className="absolute top-2 right-2 flex gap-1">
+          <div className="absolute top-2 left-2 right-2 flex justify-between items-start gap-2">
+            {/* Error message tooltip */}
+            {streamError && (
+              <div className="bg-destructive/90 text-destructive-foreground text-xs px-2 py-1 rounded max-w-[200px] truncate" title={streamError}>
+                {streamError.replace("Stream Error: ", "")}
+              </div>
+            )}
             <Button
               variant="ghost"
               size="sm"
-              className="bg-yellow-500/80 text-black text-xs px-2 py-1 h-auto hover:bg-yellow-400"
+              className="bg-yellow-500/80 text-black text-xs px-2 py-1 h-auto hover:bg-yellow-400 ml-auto"
               onClick={handleRetryStream}
               disabled={retrying}
             >
@@ -174,7 +207,7 @@ export function VideoPlayer({
               ) : (
                 <>
                   <RefreshCw className="h-3 w-3 mr-1" />
-                  Retry Stream
+                  Retry
                 </>
               )}
             </Button>
