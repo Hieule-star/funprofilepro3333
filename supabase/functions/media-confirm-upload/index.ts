@@ -129,24 +129,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Trigger Cloudflare Stream ingest for videos
-    if (asset.type === "video") {
-      console.log(`Triggering Stream ingest for video: ${mediaAssetId}`);
-      
-      const internalSecret = Deno.env.get("INTERNAL_FUNCTION_SECRET");
-      const streamUrl = `${supabaseUrl}/functions/v1/media-stream-ingest`;
-      
-      fetch(streamUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Internal-Secret": internalSecret || "",
-        },
-        body: JSON.stringify({ mediaAssetId }),
-      }).catch((err) => {
-        console.warn("Stream ingest trigger failed:", err);
-      });
-    }
+    // Note: Cloudflare Stream ingest disabled - using direct R2 playback instead
+    // Videos will be served directly from R2/CDN without transcoding
 
     return new Response(JSON.stringify({
       success: true,
