@@ -17,8 +17,28 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const cfAccountId = Deno.env.get("CF_ACCOUNT_ID");
-    const cfStreamToken = Deno.env.get("CF_STREAM_API_TOKEN");
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get Cloudflare credentials - priority: admin_settings > env vars
+    let cfAccountId = Deno.env.get("CF_ACCOUNT_ID");
+    let cfStreamToken = Deno.env.get("CF_STREAM_API_TOKEN");
+
+    // Try to get from admin_settings first
+    const { data: configData } = await supabase
+      .from("admin_settings")
+      .select("value")
+      .eq("key", "cloudflare_stream_config")
+      .single();
+
+    if (configData?.value) {
+      const config = configData.value as { accountId: string; apiToken: string };
+      if (config.accountId && config.apiToken) {
+        cfAccountId = config.accountId;
+        cfStreamToken = config.apiToken;
+        console.log("[Stream Retry] Using config from admin_settings");
+      }
+    }
 
     if (!cfAccountId || !cfStreamToken) {
       console.error("[Stream Retry] Missing Cloudflare credentials");
@@ -27,8 +47,6 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { mediaAssetId } = await req.json() as RetryRequest;
 
