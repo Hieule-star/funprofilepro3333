@@ -1,7 +1,7 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Heart, MessageSquare, Share2, MoreVertical, Play } from "lucide-react";
+import { Heart, MessageSquare, Share2, MoreVertical } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { useState, useEffect } from "react";
@@ -12,8 +12,9 @@ import CommentList from "@/components/CommentList";
 import CommentInput from "@/components/CommentInput";
 import { useNavigate } from "react-router-dom";
 import { MediaStatusBadge, MediaStatusIndicator, PinStatus } from "@/components/ui/MediaStatusBadge";
-import { useMediaUpload, MediaAsset } from "@/hooks/useMediaUpload";
+import { useMediaUpload, MediaAsset, StreamStatus } from "@/hooks/useMediaUpload";
 import { transformToMediaCdn } from "@/lib/media-url";
+import { VideoPlayer } from "@/components/ui/VideoPlayer";
 
 interface MediaItem {
   type: "image" | "video";
@@ -22,6 +23,10 @@ interface MediaItem {
   pinStatus?: PinStatus;
   ipfsCid?: string | null;
   ipfsGatewayUrl?: string | null;
+  // Cloudflare Stream fields
+  streamId?: string | null;
+  streamPlaybackUrl?: string | null;
+  streamStatus?: StreamStatus;
 }
 
 interface PostProps {
@@ -81,6 +86,10 @@ export default function Post({
               pinStatus: asset.pin_status,
               ipfsCid: asset.ipfs_cid,
               ipfsGatewayUrl: asset.ipfs_gateway_url,
+              // Cloudflare Stream fields
+              streamId: asset.stream_id,
+              streamPlaybackUrl: asset.stream_playback_url,
+              streamStatus: asset.stream_status,
             };
           }
           return m;
@@ -92,7 +101,7 @@ export default function Post({
     fetchMediaStatus();
   }, [postId, media]);
 
-  // Subscribe to media_assets changes for IPFS status updates
+  // Subscribe to media_assets changes for IPFS + Stream status updates
   useEffect(() => {
     if (!postId) return;
 
@@ -115,6 +124,10 @@ export default function Post({
                 pinStatus: updated.pin_status,
                 ipfsCid: updated.ipfs_cid,
                 ipfsGatewayUrl: updated.ipfs_gateway_url,
+                // Cloudflare Stream fields
+                streamId: updated.stream_id,
+                streamPlaybackUrl: updated.stream_playback_url,
+                streamStatus: updated.stream_status,
               };
             }
             return m;
@@ -288,10 +301,11 @@ export default function Post({
                 className="w-full h-auto object-contain transition-transform hover:scale-105"
               />
             ) : (
-              <video
-                src={transformToMediaCdn(item.url)}
-                className="w-full h-auto object-contain"
-                controls
+              <VideoPlayer
+                r2Url={transformToMediaCdn(item.url)}
+                streamPlaybackUrl={item.streamPlaybackUrl}
+                streamId={item.streamId}
+                streamStatus={item.streamStatus}
               />
             )}
             
