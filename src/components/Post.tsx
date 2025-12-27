@@ -303,10 +303,6 @@ export default function Post({
             ) : (
               <VideoPlayer
                 r2Url={transformToMediaCdn(item.url)}
-                streamPlaybackUrl={item.streamPlaybackUrl}
-                streamId={item.streamId}
-                streamStatus={item.streamStatus}
-                mediaAssetId={item.mediaAssetId}
               />
             )}
             
