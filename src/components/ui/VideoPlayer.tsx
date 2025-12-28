@@ -3,6 +3,10 @@ import { AlertCircle, Download, ExternalLink, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
+// R2 public domain for deriving originUrl from CDN
+const R2_PUBLIC_DOMAIN = "https://pub-3b3220edd327468ea9f453204f9384ca.r2.dev";
+const CDN_DOMAIN = "https://media.richkid.cloud";
+
 interface VideoPlayerProps {
   /** URL ưu tiên để phát (thường là CDN) */
   r2Url: string;
@@ -21,6 +25,16 @@ interface VideoPlayerProps {
 export function VideoPlayer({ r2Url, originUrl, poster, className }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Auto-derive originUrl from CDN URL if not provided
+  const derivedOriginUrl = useMemo(() => {
+    if (originUrl) return originUrl;
+    // If r2Url is CDN, convert to R2 public origin
+    if (r2Url?.includes("media.richkid.cloud")) {
+      return r2Url.replace(CDN_DOMAIN, R2_PUBLIC_DOMAIN);
+    }
+    return null;
+  }, [r2Url, originUrl]);
+
   const [activeUrl, setActiveUrl] = useState(r2Url);
   const [error, setError] = useState(false);
   const [lastErrorCode, setLastErrorCode] = useState<number | null>(null);
@@ -36,12 +50,12 @@ export function VideoPlayer({ r2Url, originUrl, poster, className }: VideoPlayer
     const el = videoRef.current;
     return {
       activeUrl,
-      originUrl: originUrl || null,
+      originUrl: derivedOriginUrl,
       networkState: el?.networkState ?? null,
       readyState: el?.readyState ?? null,
       errorCode: lastErrorCode,
     };
-  }, [activeUrl, originUrl, lastErrorCode]);
+  }, [activeUrl, derivedOriginUrl, lastErrorCode]);
 
   const copyDebug = async () => {
     try {
@@ -66,8 +80,8 @@ export function VideoPlayer({ r2Url, originUrl, poster, className }: VideoPlayer
     setLastErrorCode(code);
 
     // If CDN failed, try origin once
-    if (originUrl && activeUrl !== originUrl) {
-      setActiveUrl(originUrl);
+    if (derivedOriginUrl && activeUrl !== derivedOriginUrl) {
+      setActiveUrl(derivedOriginUrl);
       return;
     }
 
