@@ -12,7 +12,7 @@ import CommentList from "@/components/CommentList";
 import CommentInput from "@/components/CommentInput";
 import { useNavigate } from "react-router-dom";
 import { transformToMediaCdn } from "@/lib/media-url";
-import { VideoPlayer } from "@/components/ui/VideoPlayer";
+import { LazyVideo } from "@/components/ui/LazyVideo";
 
 interface MediaItem {
   type: "image" | "video";
@@ -212,10 +212,11 @@ export default function Post({
               <img
                 src={transformToMediaCdn(item.url)}
                 alt={`Ảnh bài viết ${index + 1}`}
+                loading="lazy"
                 className="w-full h-auto object-contain transition-transform hover:scale-105"
               />
             ) : (
-              <VideoPlayer 
+              <LazyVideo 
                 r2Url={transformToMediaCdn(item.url)} 
                 originUrl={getOriginUrl(item)} 
               />
