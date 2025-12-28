@@ -2,23 +2,33 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Play } from "lucide-react";
 import { VideoPlayer } from './VideoPlayer';
 import { cn } from "@/lib/utils";
+import { buildCdnUrl } from '@/lib/media-url';
 
 interface LazyVideoProps {
-  r2Url: string;
+  /** Storage key (r2_key) từ database - ưu tiên dùng */
+  storageKey?: string;
+  /** URL trực tiếp (legacy support) */
+  r2Url?: string;
+  /** MIME type để detect MOV files */
+  mimeType?: string;
+  /** Origin URL để fallback */
   originUrl?: string;
   poster?: string;
   className?: string;
-  nextVideoUrl?: string; // URL của video tiếp theo để preload
+  /** Storage key của video tiếp theo để preload */
+  nextVideoKey?: string;
 }
 
 // Cache để tránh preload trùng lặp
-const preloadedUrls = new Set<string>();
+const preloadedKeys = new Set<string>();
 
 // Preload video metadata
-const preloadVideoMetadata = (url: string) => {
-  if (!url || preloadedUrls.has(url)) return;
+const preloadVideoMetadata = (storageKey: string) => {
+  if (!storageKey || preloadedKeys.has(storageKey)) return;
   
-  preloadedUrls.add(url);
+  preloadedKeys.add(storageKey);
+  
+  const url = buildCdnUrl(storageKey);
   
   // Tạo video element ẩn để preload metadata
   const video = document.createElement('video');
@@ -39,22 +49,33 @@ const preloadVideoMetadata = (url: string) => {
   };
 };
 
-export function LazyVideo({ r2Url, originUrl, poster, className, nextVideoUrl }: LazyVideoProps) {
+export function LazyVideo({ 
+  storageKey, 
+  r2Url, 
+  mimeType,
+  originUrl, 
+  poster, 
+  className, 
+  nextVideoKey 
+}: LazyVideoProps) {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [isPreloading, setIsPreloading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Resolve storage key for preloading
+  const resolvedKey = storageKey || '';
+
   // Observer cho preload (xa hơn - 500px)
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !resolvedKey) return;
 
     const preloadObserver = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && !isPreloading) {
           setIsPreloading(true);
           // Preload metadata của video hiện tại
-          preloadVideoMetadata(r2Url);
+          preloadVideoMetadata(resolvedKey);
           preloadObserver.disconnect();
         }
       },
@@ -67,7 +88,7 @@ export function LazyVideo({ r2Url, originUrl, poster, className, nextVideoUrl }:
     preloadObserver.observe(container);
 
     return () => preloadObserver.disconnect();
-  }, [r2Url, isPreloading]);
+  }, [resolvedKey, isPreloading]);
 
   // Observer cho load thực sự (gần hơn - 200px)
   useEffect(() => {
@@ -94,10 +115,10 @@ export function LazyVideo({ r2Url, originUrl, poster, className, nextVideoUrl }:
 
   // Preload video tiếp theo khi video hiện tại bắt đầu play
   const handleVideoPlay = useCallback(() => {
-    if (nextVideoUrl) {
-      preloadVideoMetadata(nextVideoUrl);
+    if (nextVideoKey) {
+      preloadVideoMetadata(nextVideoKey);
     }
-  }, [nextVideoUrl]);
+  }, [nextVideoKey]);
 
   // Lắng nghe sự kiện play từ video
   useEffect(() => {
@@ -120,7 +141,9 @@ export function LazyVideo({ r2Url, originUrl, poster, className, nextVideoUrl }:
     <div ref={containerRef} className={cn("min-h-[200px]", className)}>
       {hasLoaded ? (
         <VideoPlayer 
-          r2Url={r2Url} 
+          storageKey={storageKey}
+          r2Url={r2Url}
+          mimeType={mimeType}
           originUrl={originUrl} 
           poster={poster}
           className={className}
