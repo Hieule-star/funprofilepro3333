@@ -176,6 +176,19 @@ export default function Post({
     }
   };
 
+  // Derive originUrl from CDN URL if not provided
+  const getOriginUrl = (item: MediaItem): string | undefined => {
+    if (item.originUrl) return item.originUrl;
+    // If url is CDN, convert to R2 public origin for fallback
+    if (item.url?.includes("media.richkid.cloud")) {
+      return item.url.replace(
+        "https://media.richkid.cloud",
+        "https://pub-3b3220edd327468ea9f453204f9384ca.r2.dev"
+      );
+    }
+    return undefined;
+  };
+
   const renderMedia = () => {
     if (!media || media.length === 0) return null;
 
@@ -202,7 +215,10 @@ export default function Post({
                 className="w-full h-auto object-contain transition-transform hover:scale-105"
               />
             ) : (
-              <VideoPlayer r2Url={transformToMediaCdn(item.url)} originUrl={item.originUrl} />
+              <VideoPlayer 
+                r2Url={transformToMediaCdn(item.url)} 
+                originUrl={getOriginUrl(item)} 
+              />
             )}
           </div>
         ))}
