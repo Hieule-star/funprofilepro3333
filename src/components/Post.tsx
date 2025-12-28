@@ -201,6 +201,16 @@ export default function Post({
         ? "grid-cols-3"
         : "grid-cols-2";
 
+    // Tìm video tiếp theo để preload
+    const getNextVideoUrl = (currentIndex: number): string | undefined => {
+      for (let i = currentIndex + 1; i < media.length; i++) {
+        if (media[i].type === 'video') {
+          return transformToMediaCdn(media[i].url);
+        }
+      }
+      return undefined;
+    };
+
     return (
       <div className={`grid gap-2 ${gridClass} mt-3`}>
         {media.map((item, index) => (
@@ -218,7 +228,8 @@ export default function Post({
             ) : (
               <LazyVideo 
                 r2Url={transformToMediaCdn(item.url)} 
-                originUrl={getOriginUrl(item)} 
+                originUrl={getOriginUrl(item)}
+                nextVideoUrl={getNextVideoUrl(index)}
               />
             )}
           </div>
