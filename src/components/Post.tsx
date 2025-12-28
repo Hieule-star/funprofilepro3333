@@ -11,13 +11,15 @@ import { useToast } from "@/hooks/use-toast";
 import CommentList from "@/components/CommentList";
 import CommentInput from "@/components/CommentInput";
 import { useNavigate } from "react-router-dom";
-import { transformToMediaCdn } from "@/lib/media-url";
+import { transformToMediaCdn, extractStorageKey } from "@/lib/media-url";
 import { LazyVideo } from "@/components/ui/LazyVideo";
 
 interface MediaItem {
   type: "image" | "video";
   url: string;
   originUrl?: string;
+  mimeType?: string;
+  storageKey?: string;
 }
 
 interface PostProps {
@@ -201,11 +203,12 @@ export default function Post({
         ? "grid-cols-3"
         : "grid-cols-2";
 
-    // Tìm video tiếp theo để preload
-    const getNextVideoUrl = (currentIndex: number): string | undefined => {
+    // Tìm storage key của video tiếp theo để preload
+    const getNextVideoKey = (currentIndex: number): string | undefined => {
       for (let i = currentIndex + 1; i < media.length; i++) {
         if (media[i].type === 'video') {
-          return transformToMediaCdn(media[i].url);
+          // Ưu tiên storageKey, nếu không có thì extract từ URL
+          return media[i].storageKey || extractStorageKey(media[i].url) || undefined;
         }
       }
       return undefined;
@@ -213,27 +216,34 @@ export default function Post({
 
     return (
       <div className={`grid gap-2 ${gridClass} mt-3`}>
-        {media.map((item, index) => (
-          <div
-            key={index}
-            className="relative overflow-hidden rounded-lg bg-muted"
-          >
-            {item.type === "image" ? (
-              <img
-                src={transformToMediaCdn(item.url)}
-                alt={`Ảnh bài viết ${index + 1}`}
-                loading="lazy"
-                className="w-full h-auto object-contain transition-transform hover:scale-105"
-              />
-            ) : (
-              <LazyVideo 
-                r2Url={transformToMediaCdn(item.url)} 
-                originUrl={getOriginUrl(item)}
-                nextVideoUrl={getNextVideoUrl(index)}
-              />
-            )}
-          </div>
-        ))}
+        {media.map((item, index) => {
+          // Resolve storage key cho video
+          const itemStorageKey = item.storageKey || extractStorageKey(item.url) || undefined;
+          
+          return (
+            <div
+              key={index}
+              className="relative overflow-hidden rounded-lg bg-muted"
+            >
+              {item.type === "image" ? (
+                <img
+                  src={transformToMediaCdn(item.url)}
+                  alt={`Ảnh bài viết ${index + 1}`}
+                  loading="lazy"
+                  className="w-full h-auto object-contain transition-transform hover:scale-105"
+                />
+              ) : (
+                <LazyVideo 
+                  storageKey={itemStorageKey}
+                  r2Url={transformToMediaCdn(item.url)} 
+                  mimeType={item.mimeType}
+                  originUrl={getOriginUrl(item)}
+                  nextVideoKey={getNextVideoKey(index)}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   };
