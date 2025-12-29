@@ -10,6 +10,7 @@ import { useSearchParams } from "react-router-dom";
 interface MediaItem {
   type: "image" | "video";
   url: string;
+  mimeType?: string;
 }
 
 interface PostWithProfile {
@@ -56,18 +57,17 @@ export default function Feed() {
   useEffect(() => {
     fetchPosts();
 
-    // Real-time subscription for all post changes
     const channel = supabase
       .channel('posts-changes')
       .on(
         'postgres_changes',
         {
-          event: '*', // Listen to INSERT, UPDATE, DELETE
+          event: '*',
           schema: 'public',
           table: 'posts'
         },
         () => {
-          fetchPosts(); // Refresh when any change occurs
+          fetchPosts();
         }
       )
       .subscribe();
@@ -77,10 +77,8 @@ export default function Feed() {
     };
   }, []);
 
-  // Scroll to post when coming from notification
   useEffect(() => {
     if (!loading && targetPostId) {
-      // Small delay to ensure DOM is fully rendered
       setTimeout(() => {
         const postElement = document.getElementById(`post-${targetPostId}`);
         if (postElement) {
@@ -94,18 +92,14 @@ export default function Feed() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6">
         <div className="grid gap-6 lg:grid-cols-12">
-          {/* Left Sidebar */}
           <aside className="hidden lg:col-span-3 lg:block">
             <Sidebar />
           </aside>
 
-          {/* Main Content */}
           <main className="lg:col-span-6">
             <div className="space-y-6">
-              {/* Create Post */}
               <CreatePost />
 
-              {/* Loading State */}
               {loading ? (
                 <Card>
                   <CardContent className="flex min-h-[300px] items-center justify-center py-12">
@@ -147,7 +141,6 @@ export default function Feed() {
             </div>
           </main>
 
-          {/* Right Sidebar - Honor Board */}
           <aside className="hidden lg:col-span-3 lg:block">
             <HonorBoard />
           </aside>

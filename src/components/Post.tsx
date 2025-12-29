@@ -11,15 +11,12 @@ import { useToast } from "@/hooks/use-toast";
 import CommentList from "@/components/CommentList";
 import CommentInput from "@/components/CommentInput";
 import { useNavigate } from "react-router-dom";
-import { transformToMediaCdn, extractStorageKey } from "@/lib/media-url";
 import { LazyVideo } from "@/components/ui/LazyVideo";
 
 interface MediaItem {
   type: "image" | "video";
   url: string;
-  originUrl?: string;
   mimeType?: string;
-  storageKey?: string;
 }
 
 interface PostProps {
@@ -71,7 +68,6 @@ export default function Post({
   useEffect(() => {
     if (!postId) return;
 
-    // Real-time subscription for comments count
     const channel = supabase
       .channel(`post-comments-${postId}`)
       .on(
@@ -93,7 +89,6 @@ export default function Post({
     };
   }, [postId]);
 
-  // Auto-expand comments when coming from notification
   useEffect(() => {
     if (autoExpandComments) {
       setShowComments(true);
@@ -147,7 +142,6 @@ export default function Post({
 
     try {
       if (liked) {
-        // Unlike
         await supabase
           .from("post_likes")
           .delete()
@@ -157,7 +151,6 @@ export default function Post({
         setLiked(false);
         setLikesCount(prev => Math.max(0, prev - 1));
       } else {
-        // Like
         await supabase
           .from("post_likes")
           .insert({
@@ -178,19 +171,6 @@ export default function Post({
     }
   };
 
-  // Derive originUrl from CDN URL if not provided
-  const getOriginUrl = (item: MediaItem): string | undefined => {
-    if (item.originUrl) return item.originUrl;
-    // If url is CDN, convert to R2 public origin for fallback
-    if (item.url?.includes("media.richkid.cloud")) {
-      return item.url.replace(
-        "https://media.richkid.cloud",
-        "https://pub-3b3220edd327468ea9f453204f9384ca.r2.dev"
-      );
-    }
-    return undefined;
-  };
-
   const renderMedia = () => {
     if (!media || media.length === 0) return null;
 
@@ -203,47 +183,22 @@ export default function Post({
         ? "grid-cols-3"
         : "grid-cols-2";
 
-    // Tìm storage key của video tiếp theo để preload
-    const getNextVideoKey = (currentIndex: number): string | undefined => {
-      for (let i = currentIndex + 1; i < media.length; i++) {
-        if (media[i].type === 'video') {
-          // Ưu tiên storageKey, nếu không có thì extract từ URL
-          return media[i].storageKey || extractStorageKey(media[i].url) || undefined;
-        }
-      }
-      return undefined;
-    };
-
     return (
       <div className={`grid gap-2 ${gridClass} mt-3`}>
-        {media.map((item, index) => {
-          // Resolve storage key cho video
-          const itemStorageKey = item.storageKey || extractStorageKey(item.url) || undefined;
-          
-          return (
-            <div
-              key={index}
-              className="relative overflow-hidden rounded-lg bg-muted"
-            >
-              {item.type === "image" ? (
-                <img
-                  src={transformToMediaCdn(item.url)}
-                  alt={`Ảnh bài viết ${index + 1}`}
-                  loading="lazy"
-                  className="w-full h-auto object-contain transition-transform hover:scale-105"
-                />
-              ) : (
-                <LazyVideo 
-                  storageKey={itemStorageKey}
-                  r2Url={transformToMediaCdn(item.url)} 
-                  mimeType={item.mimeType}
-                  originUrl={getOriginUrl(item)}
-                  nextVideoKey={getNextVideoKey(index)}
-                />
-              )}
-            </div>
-          );
-        })}
+        {media.map((item, index) => (
+          <div key={index} className="relative overflow-hidden rounded-lg bg-muted">
+            {item.type === "image" ? (
+              <img
+                src={item.url}
+                alt={`Ảnh bài viết ${index + 1}`}
+                loading="lazy"
+                className="w-full h-auto object-contain transition-transform hover:scale-105"
+              />
+            ) : (
+              <LazyVideo src={item.url} mimeType={item.mimeType} />
+            )}
+          </div>
+        ))}
       </div>
     );
   };
@@ -320,7 +275,6 @@ export default function Post({
           </div>
         </div>
 
-        {/* Comments Section */}
         {showComments && postId && (
           <div className="w-full pt-4 space-y-4">
             <CommentList 
