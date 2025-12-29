@@ -195,7 +195,7 @@ export default function Post({
                 className="w-full h-auto object-contain transition-transform hover:scale-105"
               />
             ) : (
-              <LazyVideo src={item.url} mimeType={item.mimeType} />
+              <LazyVideo src={item.url} />
             )}
           </div>
         ))}
