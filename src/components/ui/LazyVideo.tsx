@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 
 interface LazyVideoProps {
   src: string;
-  mimeType?: string;
   poster?: string;
   className?: string;
 }
@@ -15,7 +14,7 @@ interface LazyVideoProps {
  * - Uses IntersectionObserver to lazy load video
  * - Shows placeholder until video is in viewport
  */
-export function LazyVideo({ src, mimeType, poster, className }: LazyVideoProps) {
+export function LazyVideo({ src, poster, className }: LazyVideoProps) {
   const [isVisible, setIsVisible] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -40,7 +39,7 @@ export function LazyVideo({ src, mimeType, poster, className }: LazyVideoProps) 
   return (
     <div ref={containerRef} className={cn("min-h-[200px]", className)}>
       {isVisible ? (
-        <VideoPlayer src={src} mimeType={mimeType} poster={poster} className={className} />
+        <VideoPlayer src={src} poster={poster} className={className} />
       ) : (
         <div className="aspect-video flex items-center justify-center bg-muted/50 rounded-lg border border-border/50">
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
