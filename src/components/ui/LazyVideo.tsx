@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Play } from "lucide-react";
 import { VideoPlayer } from './VideoPlayer';
 import { cn } from "@/lib/utils";
-import { buildCdnUrl } from '@/lib/media-url';
+import { buildCdnUrl, extractStorageKey } from '@/lib/media-url';
 
 interface LazyVideoProps {
   /** Storage key (r2_key) từ database - ưu tiên dùng */
@@ -24,11 +24,14 @@ const preloadedKeys = new Set<string>();
 
 // Preload video metadata
 const preloadVideoMetadata = (storageKey: string) => {
-  if (!storageKey || preloadedKeys.has(storageKey)) return;
-  
-  preloadedKeys.add(storageKey);
+  // Validate key before preloading
+  if (!storageKey || storageKey.trim() === '' || preloadedKeys.has(storageKey)) return;
   
   const url = buildCdnUrl(storageKey);
+  // Skip if buildCdnUrl returned empty (invalid key)
+  if (!url) return;
+  
+  preloadedKeys.add(storageKey);
   
   // Tạo video element ẩn để preload metadata
   const video = document.createElement('video');
@@ -62,12 +65,13 @@ export function LazyVideo({
   const [isPreloading, setIsPreloading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Resolve storage key for preloading
-  const resolvedKey = storageKey || '';
+  // Resolve storage key - ưu tiên storageKey prop, fallback extract từ r2Url
+  const resolvedKey = storageKey || (r2Url ? extractStorageKey(r2Url) : null);
 
   // Observer cho preload (xa hơn - 500px)
   useEffect(() => {
     const container = containerRef.current;
+    // Skip preload nếu không có container hoặc không có valid key
     if (!container || !resolvedKey) return;
 
     const preloadObserver = new IntersectionObserver(
