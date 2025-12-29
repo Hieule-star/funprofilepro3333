@@ -1,5 +1,5 @@
 # Cloudflare Worker Configuration for Media Gateway
-# Domain: media.richkid.cloud
+# Domain: media.camly.co
 
 name = "media-gateway"
 main = "src/index.ts"
@@ -8,9 +8,9 @@ compatibility_date = "2024-01-01"
 # R2 Bucket Binding - không cần access key/secret
 [[r2_buckets]]
 binding = "MEDIA_BUCKET"
-bucket_name = "funprofilepro3"
+bucket_name = "cloudshare"
 
-# Uncomment để thêm custom domain (hoặc cấu hình qua Dashboard)
+# Custom domain routes (cấu hình thêm qua Dashboard)
 # [routes]
-# pattern = "media.richkid.cloud/*"
-# zone_name = "richkid.cloud"
+# pattern = "media.camly.co/*"
+# zone_name = "camly.co"

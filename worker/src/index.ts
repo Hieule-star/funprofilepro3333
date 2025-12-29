@@ -4,11 +4,32 @@
  * Cloudflare Worker làm CDN gateway cho R2 bucket.
  * Sử dụng R2 Binding (không cần access key/secret).
  * 
- * Domain: media.richkid.cloud
+ * Domain: media.camly.co
  */
 
 export interface Env {
   MEDIA_BUCKET: R2Bucket;
+}
+
+// MIME type fallbacks
+const MIME_TYPES: Record<string, string> = {
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.avi': 'video/x-msvideo',
+  '.mkv': 'video/x-matroska',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.pdf': 'application/pdf',
+};
+
+function getMimeType(key: string): string {
+  const ext = key.toLowerCase().match(/\.[^.]+$/)?.[0];
+  return ext ? MIME_TYPES[ext] || 'application/octet-stream' : 'application/octet-stream';
 }
 
 // Cache headers
@@ -18,8 +39,8 @@ const CACHE_HEADERS = {
   // CORS - cho phép mọi domain
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Range',
-  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges',
+  'Access-Control-Allow-Headers': 'Content-Type, Range, If-None-Match, If-Modified-Since',
+  'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges, ETag',
 };
 
 export default {
@@ -52,28 +73,6 @@ export default {
         headers: CACHE_HEADERS,
       });
     }
-
-    // TODO: Image Resizing khi bật Cloudflare Image Resizing
-    // Uncomment và sử dụng khi có Cloudflare Images subscription
-    /*
-    const width = url.searchParams.get('w');
-    const height = url.searchParams.get('h');
-    const format = url.searchParams.get('format');
-    
-    if ((width || height) && isImageKey(key)) {
-      return fetch(request, {
-        cf: {
-          image: {
-            width: width ? parseInt(width) : undefined,
-            height: height ? parseInt(height) : undefined,
-            format: (format as 'webp' | 'avif' | 'auto') || 'auto',
-            fit: 'scale-down',
-            quality: 85,
-          },
-        },
-      });
-    }
-    */
 
     try {
       // Parse Range header first (for video streaming)
@@ -123,6 +122,11 @@ export default {
       // Preserve http metadata (content-type, content-disposition, etc.)
       object.writeHttpMetadata(headers);
 
+      // Fallback Content-Type nếu không có từ R2 metadata
+      if (!headers.get('Content-Type')) {
+        headers.set('Content-Type', getMimeType(key));
+      }
+
       // Accept-Ranges cho video streaming
       headers.set('Accept-Ranges', 'bytes');
 
@@ -158,13 +162,3 @@ export default {
     }
   },
 };
-
-/**
- * Helper function để check xem key có phải là image không
- * Dùng cho Image Resizing feature
- */
-function isImageKey(key: string): boolean {
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.svg'];
-  const lowerKey = key.toLowerCase();
-  return imageExtensions.some(ext => lowerKey.endsWith(ext));
-}
