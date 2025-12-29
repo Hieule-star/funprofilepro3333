@@ -1,9 +1,6 @@
 project_id = "krajdsugcvwytpsqnbzs"
 
-[functions.generate-presigned-url]
-verify_jwt = false
-
-[functions.upload-to-r2]
+[functions.get-upload-url]
 verify_jwt = true
 
 [functions.detect-token-holdings]
@@ -24,14 +21,5 @@ verify_jwt = true
 [functions.treasury-monitor]
 verify_jwt = false
 
-[functions.media-create-upload-url]
-verify_jwt = true
-
-[functions.media-confirm-upload]
-verify_jwt = true
-
 [functions.admin-cloudflare-stream-config]
-verify_jwt = true
-
-[functions.get-upload-url]
 verify_jwt = true
