@@ -36,8 +36,15 @@ function encodeStorageKey(key: string): string {
  * @returns Full CDN URL
  */
 export function buildCdnUrl(storageKey: string): string {
-  if (!storageKey) return '';
+  if (!storageKey || storageKey.trim() === '') {
+    console.warn('[buildCdnUrl] Empty storage key provided');
+    return '';
+  }
   const key = normalizeKey(storageKey);
+  if (!key) {
+    console.warn('[buildCdnUrl] Storage key is empty after normalization');
+    return '';
+  }
   return `${MEDIA_CDN_URL}/${encodeStorageKey(key)}`;
 }
 
@@ -58,13 +65,25 @@ export function buildOriginUrl(storageKey: string): string {
  * @returns Storage key or null if not extractable
  */
 export function extractStorageKey(url: string): string | null {
-  if (!url) return null;
+  if (!url || typeof url !== 'string') return null;
   
   try {
     const urlObj = new URL(url);
-    // Remove leading slash
-    return urlObj.pathname.slice(1);
+    // Remove leading slash and decode
+    const path = decodeURIComponent(urlObj.pathname.slice(1));
+    
+    // Return null if path is empty or only whitespace
+    if (!path || path.trim() === '') {
+      return null;
+    }
+    
+    return path;
   } catch {
+    // URL parsing failed - try to extract path directly for relative paths
+    if (url.startsWith('/')) {
+      const path = url.slice(1);
+      return path && path.trim() !== '' ? path : null;
+    }
     return null;
   }
 }
@@ -76,9 +95,17 @@ export function extractStorageKey(url: string): string | null {
  * @returns true if CDN is healthy, false if should use origin
  */
 export async function checkCdnHealth(storageKey: string): Promise<boolean> {
-  if (!storageKey) return false;
+  // Validate storageKey
+  if (!storageKey || storageKey.trim() === '') {
+    console.warn('[checkCdnHealth] Empty storage key provided, skipping health check');
+    return false;
+  }
   
   const key = normalizeKey(storageKey);
+  if (!key) {
+    console.warn('[checkCdnHealth] Storage key is empty after normalization');
+    return false;
+  }
   
   // Check cache first
   const cached = cdnHealthCache.get(key);
