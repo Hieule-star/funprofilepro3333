@@ -4,7 +4,6 @@ import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { FileText, Download, FileArchive, FileSpreadsheet, FileCode, File } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { transformToMediaCdn } from "@/lib/media-url";
 
 interface MessageBubbleProps {
   message: any;
@@ -61,7 +60,7 @@ export default function MessageBubble({ message, isSent }: MessageBubbleProps) {
         >
           {message.media_url && message.media_type === "image" && (
             <img 
-              src={transformToMediaCdn(message.media_url)} 
+              src={message.media_url} 
               alt="Shared image" 
               className="max-w-full max-h-80 object-cover cursor-pointer"
               onClick={handleDownload}
@@ -70,7 +69,7 @@ export default function MessageBubble({ message, isSent }: MessageBubbleProps) {
           
           {message.media_url && message.media_type === "video" && (
             <video 
-              src={transformToMediaCdn(message.media_url)} 
+              src={message.media_url} 
               controls 
               className="max-w-full max-h-80"
             />
