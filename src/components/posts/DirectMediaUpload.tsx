@@ -27,16 +27,28 @@ const ACCEPTED_TYPES = {
   video: '.mp4,.webm,.mov,.avi,.mkv'
 };
 
-// Check if video file might have codec issues (MOV/HEVC)
-function checkVideoCodecWarning(file: File): string | null {
+// Size thresholds for warnings
+const LARGE_VIDEO_SIZE_MB = 200; // Warn for videos > 200MB
+
+// Check if video file might have codec issues (MOV/HEVC) or is too large
+function checkVideoWarnings(file: File): { codec: string | null; size: string | null } {
   const ext = file.name.toLowerCase().split('.').pop();
+  const sizeMB = file.size / (1024 * 1024);
+  
+  let codecWarning: string | null = null;
+  let sizeWarning: string | null = null;
   
   // MOV files from iPhone often use HEVC codec which browsers can't play
   if (ext === 'mov' || file.type === 'video/quicktime') {
-    return 'Video MOV từ iPhone có thể không phát được trên trình duyệt. Khuyến khích chuyển sang MP4 (H.264) trước khi upload.';
+    codecWarning = 'Video MOV từ iPhone có thể không phát được trên trình duyệt. Khuyến khích chuyển sang MP4 (H.264) trước khi upload.';
   }
   
-  return null;
+  // Large file warning
+  if (sizeMB > LARGE_VIDEO_SIZE_MB) {
+    sizeWarning = `Video ${sizeMB.toFixed(0)}MB khá lớn, có thể tải lâu và stream chậm. Khuyến khích nén hoặc giảm chất lượng trước khi upload.`;
+  }
+  
+  return { codec: codecWarning, size: sizeWarning };
 }
 
 export function DirectMediaUpload({
@@ -49,6 +61,7 @@ export function DirectMediaUpload({
   const [isDragging, setIsDragging] = useState(false);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [codecWarning, setCodecWarning] = useState<string | null>(null);
+  const [sizeWarning, setSizeWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   
@@ -64,17 +77,33 @@ export function DirectMediaUpload({
 
     const file = files[0];
     
-    // Check for codec warning
-    const warning = checkVideoCodecWarning(file);
-    if (warning) {
-      setCodecWarning(warning);
-      toast({
-        title: "Cảnh báo định dạng video",
-        description: warning,
-        variant: "destructive",
-      });
+    // Check for video warnings (codec + size)
+    if (file.type.startsWith('video/')) {
+      const warnings = checkVideoWarnings(file);
+      
+      if (warnings.codec) {
+        setCodecWarning(warnings.codec);
+        toast({
+          title: "Cảnh báo định dạng video",
+          description: warnings.codec,
+          variant: "destructive",
+        });
+      } else {
+        setCodecWarning(null);
+      }
+      
+      if (warnings.size) {
+        setSizeWarning(warnings.size);
+        toast({
+          title: "Video dung lượng lớn",
+          description: warnings.size,
+        });
+      } else {
+        setSizeWarning(null);
+      }
     } else {
       setCodecWarning(null);
+      setSizeWarning(null);
     }
     
     setCurrentFile(file);
@@ -208,6 +237,17 @@ export function DirectMediaUpload({
           <div className="text-sm">
             <p className="font-medium">Cảnh báo định dạng</p>
             <p>{codecWarning}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Size warning */}
+      {sizeWarning && !uploading && (
+        <div className="flex items-start gap-2 text-orange-600 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400 rounded-lg p-3 border border-orange-200 dark:border-orange-800">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium">Video dung lượng lớn</p>
+            <p>{sizeWarning}</p>
           </div>
         </div>
       )}
