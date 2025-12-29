@@ -1,9 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, X, Send } from "lucide-react";
 import { useState, useEffect } from "react";
-import MediaUpload, { MediaFile } from "./MediaUpload";
+import { DirectMediaUpload, UploadedMedia } from "./posts/DirectMediaUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useDraftPost, DraftMedia } from "@/hooks/useDraftPost";
@@ -11,7 +11,7 @@ import { useDraftPost, DraftMedia } from "@/hooks/useDraftPost";
 export default function CreatePost() {
   const [content, setContent] = useState("");
   const [showMediaUpload, setShowMediaUpload] = useState(false);
-  const [media, setMedia] = useState<MediaFile[]>([]);
+  const [uploadedMedia, setUploadedMedia] = useState<UploadedMedia[]>([]);
   const [isPosting, setIsPosting] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
   const { toast } = useToast();
@@ -22,15 +22,16 @@ export default function CreatePost() {
     if (hasDraft && draft && !draftRestored) {
       setContent(draft.content);
       
-      // Convert draft media to MediaFile format
-      const restoredMedia: MediaFile[] = draft.media.map(m => ({
-        file: new File([], m.name, { type: m.type === 'image' ? 'image/*' : 'video/*' }),
-        preview: m.url,
+      // Convert draft media to UploadedMedia format
+      const restoredMedia: UploadedMedia[] = draft.media.map(m => ({
+        cdnUrl: m.url,
+        objectKey: m.url, // Use URL as key for restored drafts
+        filename: m.name,
         type: m.type,
-        url: m.url,
+        file: new File([], m.name, { type: m.type === 'image' ? 'image/*' : 'video/*' }),
       }));
       
-      setMedia(restoredMedia);
+      setUploadedMedia(restoredMedia);
       
       if (draft.media.length > 0) {
         setShowMediaUpload(true);
@@ -45,21 +46,35 @@ export default function CreatePost() {
     }
   }, [hasDraft, draft, draftRestored, toast]);
 
-  const handleMediaChange = (newMedia: MediaFile[]) => {
-    setMedia(newMedia);
+  const handleMediaUploaded = (media: UploadedMedia) => {
+    const newMedia = [...uploadedMedia, media];
+    setUploadedMedia(newMedia);
+
+    // Auto-save draft
+    const draftMedia: DraftMedia[] = newMedia.map(m => ({
+      url: m.cdnUrl,
+      type: m.type,
+      name: m.filename,
+      size: m.file.size,
+    }));
+    saveDraft(content, draftMedia);
+  };
+
+  const handleMediaRemoved = (objectKey: string) => {
+    const newMedia = uploadedMedia.filter(m => m.objectKey !== objectKey);
+    setUploadedMedia(newMedia);
+
     if (newMedia.length === 0) {
       setShowMediaUpload(false);
     }
 
-    // Auto-save draft when media changes
-    const draftMedia: DraftMedia[] = newMedia
-      .filter(m => m.url)
-      .map(m => ({
-        url: m.url!,
-        type: m.type,
-        name: m.file.name,
-        size: m.file.size,
-      }));
+    // Auto-save draft
+    const draftMedia: DraftMedia[] = newMedia.map(m => ({
+      url: m.cdnUrl,
+      type: m.type,
+      name: m.filename,
+      size: m.file.size,
+    }));
     saveDraft(content, draftMedia);
   };
 
@@ -68,7 +83,7 @@ export default function CreatePost() {
   };
 
   const handlePost = async () => {
-    if (!content.trim() && media.length === 0) {
+    if (!content.trim() && uploadedMedia.length === 0) {
       toast({
         title: "Lỗi",
         description: "Vui lòng nhập nội dung hoặc thêm ảnh/video",
@@ -86,46 +101,30 @@ export default function CreatePost() {
         throw new Error("Bạn cần đăng nhập để đăng bài");
       }
 
-      // Format media data
-      const mediaData = media.map(m => ({
-        url: m.url,
-        originUrl: m.originUrl,
+      // Format media data for new upload system
+      const mediaData = uploadedMedia.map(m => ({
+        url: m.cdnUrl,
         type: m.type,
-        mediaAssetId: m.mediaAssetId
-      })).filter(m => m.url);
+        objectKey: m.objectKey,
+        filename: m.filename
+      }));
 
       // Insert post into database
-      const { data: newPost, error } = await supabase
+      const { error } = await supabase
         .from('posts')
         .insert({
           user_id: user.id,
           content: content.trim() || null,
-          media: mediaData.map(m => ({ url: m.url, originUrl: m.originUrl, type: m.type })),
+          media: mediaData.map(m => ({ url: m.url, type: m.type })),
         })
         .select('id')
         .single();
 
       if (error) throw error;
 
-      // Link media_assets to the new post
-      const mediaAssetIds = mediaData
-        .map(m => m.mediaAssetId)
-        .filter((id): id is string => !!id);
-
-      if (mediaAssetIds.length > 0 && newPost?.id) {
-        const { error: updateError } = await supabase
-          .from('media_assets')
-          .update({ post_id: newPost.id })
-          .in('id', mediaAssetIds);
-
-        if (updateError) {
-          console.error("Error linking media assets:", updateError);
-        }
-      }
-
       setIsPosting(false);
       setContent("");
-      setMedia([]);
+      setUploadedMedia([]);
       setShowMediaUpload(false);
       clearDraft();
       
@@ -148,15 +147,13 @@ export default function CreatePost() {
     const newContent = e.target.value;
     setContent(newContent);
     
-    // Auto-save draft when content changes
-    const draftMedia: DraftMedia[] = media
-      .filter(m => m.url)
-      .map(m => ({
-        url: m.url!,
-        type: m.type,
-        name: m.file.name,
-        size: m.file.size,
-      }));
+    // Auto-save draft
+    const draftMedia: DraftMedia[] = uploadedMedia.map(m => ({
+      url: m.cdnUrl,
+      type: m.type,
+      name: m.filename,
+      size: m.file.size,
+    }));
     saveDraft(newContent, draftMedia);
   };
 
@@ -174,41 +171,9 @@ export default function CreatePost() {
                 variant="ghost" 
                 size="sm"
                 onClick={() => {
-                  // Manual restore
-                  const stored = localStorage.getItem('post_draft');
-                  if (stored) {
-                    try {
-                      const parsed = JSON.parse(stored);
-                      setContent(parsed.content || "");
-                      const restoredMedia = (parsed.media || []).map((m: any) => ({
-                        file: new File([], m.name, { type: m.type === 'image' ? 'image/*' : 'video/*' }),
-                        preview: m.url,
-                        type: m.type,
-                        url: m.url,
-                      }));
-                      setMedia(restoredMedia);
-                      if (restoredMedia.length > 0) {
-                        setShowMediaUpload(true);
-                      }
-                      toast({ title: "Đã tải lại bản nháp" });
-                    } catch (error) {
-                      toast({ title: "Không thể tải bản nháp", variant: "destructive" });
-                    }
-                  } else {
-                    toast({ title: "Không có bản nháp", variant: "destructive" });
-                  }
-                }}
-                className="h-7 gap-1"
-              >
-                🔄 Tải lại
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => {
                   clearDraft();
                   setContent("");
-                  setMedia([]);
+                  setUploadedMedia([]);
                   setShowMediaUpload(false);
                   setDraftRestored(false);
                 }}
@@ -228,12 +193,13 @@ export default function CreatePost() {
           className="min-h-[100px] resize-none border-muted"
         />
 
-        {/* Media Upload Section */}
+        {/* Media Upload Section - New Direct Upload */}
         {showMediaUpload && (
-          <MediaUpload 
-            onMediaChange={handleMediaChange} 
+          <DirectMediaUpload
+            onMediaUploaded={handleMediaUploaded}
+            onMediaRemoved={handleMediaRemoved}
+            uploadedMedia={uploadedMedia}
             maxFiles={4}
-            initialMedia={media}
           />
         )}
 
@@ -256,7 +222,7 @@ export default function CreatePost() {
           
           <Button
             onClick={handlePost}
-            disabled={isPosting || (!content.trim() && media.length === 0)}
+            disabled={isPosting || (!content.trim() && uploadedMedia.length === 0)}
             className="gap-2"
           >
             {isPosting ? (
@@ -266,7 +232,7 @@ export default function CreatePost() {
               </>
             ) : (
               <>
-                <ImagePlus className="h-4 w-4" />
+                <Send className="h-4 w-4" />
                 <span>Đăng bài</span>
               </>
             )}
@@ -274,10 +240,10 @@ export default function CreatePost() {
         </div>
 
         {/* Media Count Badge */}
-        {media.length > 0 && !showMediaUpload && (
+        {uploadedMedia.length > 0 && !showMediaUpload && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <ImagePlus className="h-4 w-4" />
-            <span>{media.length} file đã chọn</span>
+            <span>{uploadedMedia.length} file đã upload</span>
             <button
               type="button"
               onClick={toggleMediaUpload}
