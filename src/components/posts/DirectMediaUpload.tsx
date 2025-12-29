@@ -1,9 +1,10 @@
 import React, { useState, useRef, useCallback } from 'react';
-import { Upload, X, Image, Video, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Upload, X, Image, Video, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { useDirectUpload, formatFileSize, UploadProgress } from '@/hooks/useDirectUpload';
+import { useToast } from '@/hooks/use-toast';
 
 export interface UploadedMedia {
   cdnUrl: string;
@@ -26,6 +27,18 @@ const ACCEPTED_TYPES = {
   video: '.mp4,.webm,.mov,.avi,.mkv'
 };
 
+// Check if video file might have codec issues (MOV/HEVC)
+function checkVideoCodecWarning(file: File): string | null {
+  const ext = file.name.toLowerCase().split('.').pop();
+  
+  // MOV files from iPhone often use HEVC codec which browsers can't play
+  if (ext === 'mov' || file.type === 'video/quicktime') {
+    return 'Video MOV từ iPhone có thể không phát được trên trình duyệt. Khuyến khích chuyển sang MP4 (H.264) trước khi upload.';
+  }
+  
+  return null;
+}
+
 export function DirectMediaUpload({
   onMediaUploaded,
   onMediaRemoved,
@@ -35,7 +48,9 @@ export function DirectMediaUpload({
 }: DirectMediaUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [codecWarning, setCodecWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   
   const { upload, cancel, progress, uploading, error } = useDirectUpload();
 
@@ -48,6 +63,20 @@ export function DirectMediaUpload({
     }
 
     const file = files[0];
+    
+    // Check for codec warning
+    const warning = checkVideoCodecWarning(file);
+    if (warning) {
+      setCodecWarning(warning);
+      toast({
+        title: "Cảnh báo định dạng video",
+        description: warning,
+        variant: "destructive",
+      });
+    } else {
+      setCodecWarning(null);
+    }
+    
     setCurrentFile(file);
 
     const result = await upload(file);
@@ -69,7 +98,7 @@ export function DirectMediaUpload({
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [upload, onMediaUploaded, uploadedMedia.length, maxFiles]);
+  }, [upload, onMediaUploaded, uploadedMedia.length, maxFiles, toast]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -168,6 +197,17 @@ export function DirectMediaUpload({
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{formatFileSize(progress.loaded)} / {formatFileSize(progress.total)}</span>
             <span className="font-medium text-primary">{progress.percentage}%</span>
+          </div>
+        </div>
+      )}
+
+      {/* Codec warning */}
+      {codecWarning && !uploading && (
+        <div className="flex items-start gap-2 text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium">Cảnh báo định dạng</p>
+            <p>{codecWarning}</p>
           </div>
         </div>
       )}

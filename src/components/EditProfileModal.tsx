@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Loader2, 
-  Upload, 
   User, 
   Link, 
   Facebook, 
@@ -26,7 +25,7 @@ import {
   Camera,
   X
 } from "lucide-react";
-import { uploadToR2 } from "@/lib/supabase-upload";
+import { useDirectUpload } from "@/hooks/useDirectUpload";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface ProfileData {
@@ -113,15 +112,17 @@ export default function EditProfileModal({
     }
   }, [open, currentUsername, currentBio, currentAvatarUrl, currentCoverUrl, currentJobTitle, currentLocation, currentSocialFacebook, currentSocialInstagram, currentSocialTiktok, currentSocialTwitter, currentSocialWebsite]);
 
+  const { upload } = useDirectUpload();
+
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setUploadingAvatar(true);
-      const result = await uploadToR2(file, "avatars");
-      if (result.success && result.url) {
-        setAvatarUrl(result.url);
+      const result = await upload(file);
+      if (result.success && result.cdnUrl) {
+        setAvatarUrl(result.cdnUrl);
         toast({
           title: "Thành công",
           description: "Đã tải lên avatar",
@@ -147,9 +148,9 @@ export default function EditProfileModal({
 
     try {
       setUploadingCover(true);
-      const result = await uploadToR2(file, "covers");
-      if (result.success && result.url) {
-        setCoverUrl(result.url);
+      const result = await upload(file);
+      if (result.success && result.cdnUrl) {
+        setCoverUrl(result.cdnUrl);
         toast({
           title: "Thành công",
           description: "Đã tải lên ảnh bìa",
