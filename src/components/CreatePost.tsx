@@ -45,6 +45,7 @@ export default function CreatePost({ onPostCreated }: CreatePostProps) {
         ? uploadedMedia.map((m) => ({
             type: m.type,
             url: m.cdnUrl,
+            thumbnail: m.thumbnailUrl, // Include thumbnail URL for videos
           }))
         : null;
 
