@@ -7,13 +7,14 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   className?: string;
+  preload?: "none" | "metadata" | "auto";
 }
 
 /**
  * Simple Video Player
  * Flow: Browser → Worker CDN (media.camly.co) → R2
  */
-export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
+export function VideoPlayer({ src, poster, className, preload = "none" }: VideoPlayerProps) {
   const [error, setError] = useState(false);
 
   const handleError = useCallback(() => {
@@ -43,7 +44,7 @@ export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
         poster={poster}
         controls
         playsInline
-        preload="metadata"
+        preload={preload}
         className="w-full h-auto object-contain"
         onError={handleError}
       />
