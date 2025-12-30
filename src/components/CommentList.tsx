@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import CommentItem from "@/components/CommentItem";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import CommentItem from "./CommentItem";
 
 interface Comment {
   id: string;
@@ -22,82 +21,56 @@ interface CommentListProps {
   targetCommentId?: string | null;
 }
 
-export default function CommentList({
-  postId,
-  onReply,
-  targetCommentId,
-}: CommentListProps) {
-  const { user } = useAuth();
+export default function CommentList({ postId, onReply, targetCommentId }: CommentListProps) {
   const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    getCurrentUser();
+  }, []);
 
   const fetchComments = async () => {
     const { data, error } = await supabase
-      .from("comments")
+      .from('comments')
       .select(`
-        id,
-        content,
-        created_at,
-        user_id,
-        parent_id,
-        profiles!user_id (username, avatar_url)
+        *,
+        profiles (
+          username,
+          avatar_url
+        )
       `)
-      .eq("post_id", postId)
-      .order("created_at", { ascending: true });
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
 
     if (error) {
-      console.error("Error fetching comments:", error);
+      console.error('Error fetching comments:', error);
       return;
     }
 
-    setComments(data as Comment[]);
-    setLoading(false);
+    setComments(data || []);
   };
 
   useEffect(() => {
     fetchComments();
 
-    // Realtime subscription
+    // Real-time subscription
     const channel = supabase
       .channel(`comments-${postId}`)
       .on(
-        "postgres_changes",
+        'postgres_changes',
         {
-          event: "INSERT",
-          schema: "public",
-          table: "comments",
-          filter: `post_id=eq.${postId}`,
+          event: '*',
+          schema: 'public',
+          table: 'comments',
+          filter: `post_id=eq.${postId}`
         },
-        async (payload) => {
-          // Fetch the new comment with profile
-          const { data } = await supabase
-            .from("comments")
-            .select(`
-              id,
-              content,
-              created_at,
-              user_id,
-              parent_id,
-              profiles!user_id (username, avatar_url)
-            `)
-            .eq("id", payload.new.id)
-            .single();
-
-          if (data) {
-            setComments((prev) => [...prev, data as Comment]);
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "comments",
-          filter: `post_id=eq.${postId}`,
-        },
-        (payload) => {
-          setComments((prev) => prev.filter((c) => c.id !== payload.old.id));
+        () => {
+          fetchComments();
         }
       )
       .subscribe();
@@ -107,12 +80,45 @@ export default function CommentList({
     };
   }, [postId]);
 
-  const handleDelete = (commentId: string) => {
-    setComments((prev) => prev.filter((c) => c.id !== commentId));
+  // Scroll to target comment when specified
+  useEffect(() => {
+    if (targetCommentId && comments.length > 0) {
+      setTimeout(() => {
+        const commentElement = document.getElementById(`comment-${targetCommentId}`);
+        if (commentElement) {
+          commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 500);
+    }
+  }, [targetCommentId, comments.length]);
+
+  const handleDelete = async (commentId: string) => {
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) {
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa bình luận",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Thành công",
+      description: "Đã xóa bình luận",
+    });
   };
 
-  // Organize comments: top-level and replies
-  const topLevelComments = comments.filter((c) => !c.parent_id);
+  if (comments.length === 0) {
+    return null;
+  }
+
+  // Separate top-level comments and replies
+  const topLevelComments = comments.filter(c => !c.parent_id);
   const repliesMap = comments.reduce((acc, comment) => {
     if (comment.parent_id) {
       if (!acc[comment.parent_id]) {
@@ -123,54 +129,32 @@ export default function CommentList({
     return acc;
   }, {} as Record<string, Comment[]>);
 
-  if (loading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2].map((i) => (
-          <div key={i} className="flex gap-2">
-            <Skeleton className="h-8 w-8 rounded-full" />
-            <div className="flex-1 space-y-1">
-              <Skeleton className="h-12 w-full rounded-lg" />
-              <Skeleton className="h-3 w-24" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (comments.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground text-center py-4">
-        Chưa có bình luận nào
-      </p>
-    );
-  }
-
   return (
     <div className="space-y-3">
       {topLevelComments.map((comment) => (
         <div key={comment.id} className="space-y-2">
           <CommentItem
             comment={comment}
-            currentUserId={user?.id || null}
+            currentUserId={currentUserId}
             onDelete={handleDelete}
             onReply={onReply}
-            isHighlighted={targetCommentId === comment.id}
+            isHighlighted={comment.id === targetCommentId}
           />
-
-          {/* Replies */}
-          {repliesMap[comment.id]?.map((reply) => (
-            <CommentItem
-              key={reply.id}
-              comment={reply}
-              currentUserId={user?.id || null}
-              onDelete={handleDelete}
-              onReply={onReply}
-              isNested
-              isHighlighted={targetCommentId === reply.id}
-            />
-          ))}
+          {repliesMap[comment.id] && (
+            <div className="space-y-2">
+              {repliesMap[comment.id].map((reply) => (
+                <CommentItem
+                  key={reply.id}
+                  comment={reply}
+                  currentUserId={currentUserId}
+                  onDelete={handleDelete}
+                  onReply={onReply}
+                  isNested
+                  isHighlighted={reply.id === targetCommentId}
+                />
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>

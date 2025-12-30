@@ -1,28 +1,22 @@
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Heart, MessageSquare, Share2, MoreVertical } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { vi } from "date-fns/locale";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Heart, MessageCircle, Share2, MoreHorizontal, Trash2 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { vi } from "date-fns/locale";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
-import { LazyVideo } from "@/components/ui/LazyVideo";
+import { useToast } from "@/hooks/use-toast";
 import CommentList from "@/components/CommentList";
 import CommentInput from "@/components/CommentInput";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { LazyVideo } from "@/components/ui/LazyVideo";
 
 interface MediaItem {
   type: "image" | "video";
   url: string;
-  thumbnail?: string; // Thumbnail URL for videos
+  mimeType?: string;
 }
 
 interface PostProps {
@@ -48,223 +42,254 @@ export default function Post({
   content,
   timestamp,
   likes: initialLikes,
-  comments: initialComments,
+  comments,
   shares,
   media,
   autoExpandComments = false,
-  targetCommentId,
+  targetCommentId = null,
 }: PostProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [liked, setLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(initialLikes);
-  const [commentsCount, setCommentsCount] = useState(initialComments);
-  const [showComments, setShowComments] = useState(autoExpandComments);
+  const [commentsCount, setCommentsCount] = useState(comments);
+  const [showComments, setShowComments] = useState(false);
   const [replyTo, setReplyTo] = useState<{ commentId: string; username: string } | null>(null);
 
   useEffect(() => {
-    if (!user || !postId) return;
+    if (postId && user) {
+      checkIfLiked();
+      fetchLikesCount();
+      fetchCommentsCount();
+    }
+  }, [postId, user]);
 
-    // Check if user already liked this post
-    const checkLiked = async () => {
-      const { data } = await supabase
-        .from("post_likes")
-        .select("id")
-        .eq("post_id", postId)
-        .eq("user_id", user.id)
-        .maybeSingle();
+  useEffect(() => {
+    if (!postId) return;
 
-      setLiked(!!data);
+    const channel = supabase
+      .channel(`post-comments-${postId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'comments',
+          filter: `post_id=eq.${postId}`
+        },
+        () => {
+          fetchCommentsCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
     };
+  }, [postId]);
 
-    checkLiked();
-  }, [user, postId]);
+  useEffect(() => {
+    if (autoExpandComments) {
+      setShowComments(true);
+    }
+  }, [autoExpandComments]);
+
+  const checkIfLiked = async () => {
+    if (!postId || !user) return;
+
+    const { data } = await supabase
+      .from("post_likes")
+      .select("id")
+      .eq("post_id", postId)
+      .eq("user_id", user.id)
+      .single();
+
+    setLiked(!!data);
+  };
+
+  const fetchLikesCount = async () => {
+    if (!postId) return;
+
+    const { count } = await supabase
+      .from("post_likes")
+      .select("*", { count: "exact", head: true })
+      .eq("post_id", postId);
+
+    setLikesCount(count || 0);
+  };
+
+  const fetchCommentsCount = async () => {
+    if (!postId) return;
+
+    const { count } = await supabase
+      .from("comments")
+      .select("*", { count: "exact", head: true })
+      .eq("post_id", postId);
+
+    setCommentsCount(count || 0);
+  };
 
   const handleLike = async () => {
-    if (!user || !postId) {
-      toast.error("Vui lòng đăng nhập để thích bài viết");
+    if (!postId || !user) {
+      toast({
+        title: "Vui lòng đăng nhập",
+        description: "Bạn cần đăng nhập để thích bài viết",
+        variant: "destructive",
+      });
       return;
     }
 
-    if (liked) {
-      // Unlike
-      const { error } = await supabase
-        .from("post_likes")
-        .delete()
-        .eq("post_id", postId)
-        .eq("user_id", user.id);
-
-      if (!error) {
-        setLiked(false);
-        setLikesCount((prev) => Math.max(0, prev - 1));
-      }
-    } else {
-      // Like
-      const { error } = await supabase
-        .from("post_likes")
-        .insert({ post_id: postId, user_id: user.id });
-
-      if (!error) {
-        setLiked(true);
-        setLikesCount((prev) => prev + 1);
-      }
-    }
-  };
-
-  const handleShare = async () => {
-    const url = `${window.location.origin}/post/${postId}`;
     try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Đã sao chép liên kết bài viết");
-    } catch {
-      toast.error("Không thể sao chép liên kết");
+      if (liked) {
+        await supabase
+          .from("post_likes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", user.id);
+        
+        setLiked(false);
+        setLikesCount(prev => Math.max(0, prev - 1));
+      } else {
+        await supabase
+          .from("post_likes")
+          .insert({
+            post_id: postId,
+            user_id: user.id,
+          });
+        
+        setLiked(true);
+        setLikesCount(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể thực hiện thao tác",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleDelete = async () => {
-    if (!user || !postId || user.id !== userId) return;
+  const renderMedia = () => {
+    if (!media || media.length === 0) return null;
 
-    const { error } = await supabase.from("posts").delete().eq("id", postId);
+    const gridClass =
+      media.length === 1
+        ? "grid-cols-1"
+        : media.length === 2
+        ? "grid-cols-2"
+        : media.length === 3
+        ? "grid-cols-3"
+        : "grid-cols-2";
 
-    if (error) {
-      toast.error("Không thể xóa bài viết");
+    return (
+      <div className={`grid gap-2 ${gridClass} mt-3`}>
+        {media.map((item, index) => (
+          <div key={index} className="relative overflow-hidden rounded-lg bg-muted">
+            {item.type === "image" ? (
+              <img
+                src={item.url}
+                alt={`Ảnh bài viết ${index + 1}`}
+                loading="lazy"
+                className="w-full h-auto object-contain transition-transform hover:scale-105"
+              />
+            ) : (
+              <LazyVideo src={item.url} mimeType={item.mimeType} />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const handleProfileClick = () => {
+    if (!userId) return;
+    
+    if (userId === user?.id) {
+      navigate('/profile');
     } else {
-      toast.success("Đã xóa bài viết");
+      navigate(`/user/${userId}`);
     }
-  };
-
-  const handleReply = (commentId: string, username: string) => {
-    setReplyTo({ commentId, username });
-    setShowComments(true);
-  };
-
-  const handleCommentAdded = () => {
-    setCommentsCount((prev) => prev + 1);
   };
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden">
-      {/* Header */}
-      <div className="p-4 flex items-center justify-between">
-        <Link to={`/profile/${userId}`} className="flex items-center gap-3 hover:opacity-80">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={avatar} />
-            <AvatarFallback>{author.charAt(0).toUpperCase()}</AvatarFallback>
+    <Card 
+      id={postId ? `post-${postId}` : undefined}
+      className={`shadow-md transition-all hover:shadow-lg ${
+        autoExpandComments ? 'ring-2 ring-primary' : ''
+      }`}
+    >
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+        <div 
+          className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={handleProfileClick}
+        >
+          <Avatar className="h-12 w-12 border-2 border-primary/20">
+            <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+              {avatar}
+            </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold text-sm">{author}</p>
+            <p className="font-semibold hover:underline">{author}</p>
             <p className="text-xs text-muted-foreground">
               {formatDistanceToNow(timestamp, { addSuffix: true, locale: vi })}
             </p>
           </div>
-        </Link>
-
-        {user?.id === userId && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDelete} className="text-destructive">
-                <Trash2 className="h-4 w-4 mr-2" />
-                Xóa bài viết
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
-
-      {/* Content */}
-      {content && (
-        <div className="px-4 pb-3">
-          <p className="text-sm whitespace-pre-wrap">{content}</p>
         </div>
-      )}
-
-      {/* Media */}
-      {media && media.length > 0 && (
-        <div className={cn(
-          "grid gap-1",
-          media.length === 1 && "grid-cols-1",
-          media.length === 2 && "grid-cols-2",
-          media.length >= 3 && "grid-cols-2"
-        )}>
-          {media.slice(0, 4).map((item, index) => (
-            <div
-              key={index}
-              className={cn(
-                "relative overflow-hidden bg-muted",
-                media.length === 1 && "aspect-video",
-                media.length === 2 && "aspect-square",
-                media.length >= 3 && index === 0 && media.length === 3 && "row-span-2 aspect-[3/4]",
-                media.length >= 3 && index !== 0 && "aspect-square"
-              )}
+        <Button variant="ghost" size="icon">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="pb-3">
+        <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
+        {renderMedia()}
+      </CardContent>
+      <CardFooter className="flex-col items-start pt-3">
+        <div className="flex w-full items-center justify-between border-b pb-3">
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`gap-2 transition-colors ${
+                liked ? "text-destructive" : "hover:text-destructive"
+              }`}
+              onClick={handleLike}
             >
-              {item.type === "image" ? (
-                <img
-                  src={item.url}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  decoding="async"
-                />
-              ) : (
-                <LazyVideo
-                  src={item.url}
-                  poster={item.thumbnail}
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-          ))}
+              <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
+              <span className="text-xs">{likesCount}</span>
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="gap-2 hover:text-info"
+              onClick={() => setShowComments(!showComments)}
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span className="text-xs">{commentsCount}</span>
+            </Button>
+            <Button variant="ghost" size="sm" className="gap-2 hover:text-primary">
+              <Share2 className="h-4 w-4" />
+              <span className="text-xs">{shares}</span>
+            </Button>
+          </div>
         </div>
-      )}
 
-      {/* Actions */}
-      <div className="p-4 flex items-center gap-1 border-t">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleLike}
-          className={cn("gap-2", liked && "text-red-500")}
-        >
-          <Heart className={cn("h-4 w-4", liked && "fill-current")} />
-          <span>{likesCount > 0 ? likesCount : ""}</span>
-        </Button>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowComments(!showComments)}
-          className="gap-2"
-        >
-          <MessageCircle className="h-4 w-4" />
-          <span>{commentsCount > 0 ? commentsCount : ""}</span>
-        </Button>
-
-        <Button variant="ghost" size="sm" onClick={handleShare} className="gap-2">
-          <Share2 className="h-4 w-4" />
-          <span>{shares > 0 ? shares : ""}</span>
-        </Button>
-      </div>
-
-      {/* Comments Section */}
-      {showComments && postId && (
-        <div className="border-t px-4 py-3 space-y-3">
-          <CommentList
-            postId={postId}
-            onReply={handleReply}
-            targetCommentId={targetCommentId}
-          />
-          <CommentInput
-            postId={postId}
-            replyTo={replyTo}
-            onCancelReply={() => setReplyTo(null)}
-            onCommentAdded={handleCommentAdded}
-          />
-        </div>
-      )}
-    </div>
+        {showComments && postId && (
+          <div className="w-full pt-4 space-y-4">
+            <CommentList 
+              postId={postId} 
+              onReply={(commentId, username) => setReplyTo({ commentId, username })}
+              targetCommentId={targetCommentId}
+            />
+            <CommentInput 
+              postId={postId} 
+              replyTo={replyTo}
+              onCancelReply={() => setReplyTo(null)}
+            />
+          </div>
+        )}
+      </CardFooter>
+    </Card>
   );
 }

@@ -1,18 +1,17 @@
-import { useRef } from "react";
-import { useDirectUpload } from "@/hooks/useDirectUpload";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { X, Upload, Image, Film, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import React, { useState, useRef, useCallback } from 'react';
+import { Upload, X, Image, Video, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
+import { useDirectUpload, formatFileSize, UploadProgress } from '@/hooks/useDirectUpload';
+import { useToast } from '@/hooks/use-toast';
 
 export interface UploadedMedia {
   cdnUrl: string;
   objectKey: string;
   filename: string;
-  type: "image" | "video";
+  type: 'image' | 'video';
   file: File;
-  thumbnailUrl?: string; // New: thumbnail URL for videos
 }
 
 interface DirectMediaUploadProps {
@@ -23,150 +22,258 @@ interface DirectMediaUploadProps {
   className?: string;
 }
 
+const ACCEPTED_TYPES = {
+  image: '.jpg,.jpeg,.png,.gif,.webp,.svg',
+  video: '.mp4,.webm,.mov,.avi,.mkv'
+};
+
+// Check if video file might have codec issues (MOV/HEVC)
+function checkVideoCodecWarning(file: File): string | null {
+  const ext = file.name.toLowerCase().split('.').pop();
+  
+  // MOV files from iPhone often use HEVC codec which browsers can't play
+  if (ext === 'mov' || file.type === 'video/quicktime') {
+    return 'Video MOV từ iPhone có thể không phát được trên trình duyệt. Khuyến khích chuyển sang MP4 (H.264) trước khi upload.';
+  }
+  
+  return null;
+}
+
 export function DirectMediaUpload({
   onMediaUploaded,
   onMediaRemoved,
-  maxFiles = 4,
+  maxFiles = 10,
   uploadedMedia,
-  className,
+  className
 }: DirectMediaUploadProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { upload, uploading, progress } = useDirectUpload();
+  const [isDragging, setIsDragging] = useState(false);
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [codecWarning, setCodecWarning] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  
+  const { upload, cancel, progress, uploading, error } = useDirectUpload();
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    const remainingSlots = maxFiles - uploadedMedia.length;
-    if (files.length > remainingSlots) {
-      toast.error(`Chỉ có thể upload thêm ${remainingSlots} file`);
+  const handleFiles = useCallback(async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    
+    // Check if we've reached max files
+    if (uploadedMedia.length >= maxFiles) {
       return;
     }
 
-    for (const file of files) {
-      const isImage = file.type.startsWith("image/");
-      const isVideo = file.type.startsWith("video/");
-
-      if (!isImage && !isVideo) {
-        toast.error(`${file.name} không phải là ảnh hoặc video`);
-        continue;
-      }
-
-      try {
-        const result = await upload(file);
-        if (result.success && result.cdnUrl && result.objectKey) {
-          onMediaUploaded({
-            cdnUrl: result.cdnUrl,
-            objectKey: result.objectKey,
-            filename: file.name,
-            type: isImage ? "image" : "video",
-            file,
-            thumbnailUrl: result.thumbnailUrl,
-          });
-        }
-      } catch (error: any) {
-        toast.error(`Lỗi upload ${file.name}: ${error.message}`);
-      }
+    const file = files[0];
+    
+    // Check for codec warning
+    const warning = checkVideoCodecWarning(file);
+    if (warning) {
+      setCodecWarning(warning);
+      toast({
+        title: "Cảnh báo định dạng video",
+        description: warning,
+        variant: "destructive",
+      });
+    } else {
+      setCodecWarning(null);
     }
+    
+    setCurrentFile(file);
 
-    // Reset input
-    if (inputRef.current) {
-      inputRef.current.value = "";
+    const result = await upload(file);
+    
+    if (result.success && result.cdnUrl && result.objectKey && result.filename) {
+      const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+      onMediaUploaded({
+        cdnUrl: result.cdnUrl,
+        objectKey: result.objectKey,
+        filename: result.filename,
+        type: mediaType,
+        file
+      });
     }
-  };
+    
+    setCurrentFile(null);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [upload, onMediaUploaded, uploadedMedia.length, maxFiles, toast]);
 
-  const handleRemove = (objectKey: string) => {
-    onMediaRemoved(objectKey);
-  };
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    handleFiles(e.dataTransfer.files);
+  }, [handleFiles]);
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFiles(e.target.files);
+  }, [handleFiles]);
+
+  const openFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    cancel();
+    setCurrentFile(null);
+  }, [cancel]);
+
+  const canAddMore = uploadedMedia.length < maxFiles && !uploading;
 
   return (
-    <div className={cn("space-y-3", className)}>
-      {/* Upload Button */}
-      {uploadedMedia.length < maxFiles && (
+    <div className={cn('space-y-4', className)}>
+      {/* Drop zone */}
+      {canAddMore && (
         <div
-          onClick={() => inputRef.current?.click()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={openFilePicker}
           className={cn(
-            "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
-            "hover:border-primary hover:bg-primary/5",
-            uploading && "pointer-events-none opacity-50"
+            'border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-200',
+            isDragging 
+              ? 'border-primary bg-primary/5 scale-[1.02]' 
+              : 'border-border hover:border-primary/50 hover:bg-muted/50'
           )}
         >
           <input
-            ref={inputRef}
+            ref={fileInputRef}
             type="file"
-            accept="image/*,video/*"
-            multiple
-            onChange={handleFileSelect}
+            accept={`${ACCEPTED_TYPES.image},${ACCEPTED_TYPES.video}`}
+            onChange={handleFileChange}
             className="hidden"
           />
-
-          {uploading ? (
-            <div className="space-y-2">
-              <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Đang upload...</p>
-              <Progress value={progress?.percentage || 0} className="w-full max-w-xs mx-auto" />
+          
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Image className="h-5 w-5" />
+              <Video className="h-5 w-5" />
             </div>
-          ) : (
-            <>
-              <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Kéo thả hoặc click để chọn ảnh/video
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Tối đa {maxFiles} file, mỗi file tối đa 100MB
-              </p>
-            </>
-          )}
+            <p className="text-sm font-medium">
+              {isDragging ? 'Thả file vào đây' : 'Kéo thả hoặc click để chọn file'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              JPG, PNG, GIF, MP4, WebM, MOV (tối đa 4GB)
+            </p>
+          </div>
         </div>
       )}
 
-      {/* Preview */}
-      {uploadedMedia.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
-          {uploadedMedia.map((media) => (
-            <div
-              key={media.objectKey}
-              className="relative aspect-square rounded-lg overflow-hidden bg-muted group"
+      {/* Upload progress */}
+      {uploading && currentFile && progress && (
+        <div className="bg-muted/50 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 min-w-0">
+              <Upload className="h-4 w-4 text-primary animate-pulse flex-shrink-0" />
+              <span className="text-sm font-medium truncate">{currentFile.name}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCancel}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
             >
-              {media.type === "image" ? (
+              <X className="h-4 w-4 mr-1" />
+              Hủy
+            </Button>
+          </div>
+          
+          <Progress value={progress.percentage} className="h-2" />
+          
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{formatFileSize(progress.loaded)} / {formatFileSize(progress.total)}</span>
+            <span className="font-medium text-primary">{progress.percentage}%</span>
+          </div>
+        </div>
+      )}
+
+      {/* Codec warning */}
+      {codecWarning && !uploading && (
+        <div className="flex items-start gap-2 text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 dark:text-yellow-400 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium">Cảnh báo định dạng</p>
+            <p>{codecWarning}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Error message */}
+      {error && !uploading && (
+        <div className="flex items-center gap-2 text-destructive bg-destructive/10 rounded-lg p-3">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          <span className="text-sm">{error}</span>
+        </div>
+      )}
+
+      {/* Uploaded media preview */}
+      {uploadedMedia.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {uploadedMedia.map((media) => (
+            <div key={media.objectKey} className="relative group rounded-lg overflow-hidden bg-muted aspect-video">
+              {media.type === 'image' ? (
                 <img
                   src={media.cdnUrl}
                   alt={media.filename}
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="relative w-full h-full">
-                  <video
-                    src={media.cdnUrl}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                    <Film className="h-8 w-8 text-white" />
-                  </div>
-                </div>
+                <video
+                  src={media.cdnUrl}
+                  className="w-full h-full object-cover"
+                  muted
+                />
               )}
-
-              {/* Type indicator */}
-              <div className="absolute top-2 left-2 bg-black/60 rounded px-2 py-0.5">
-                {media.type === "image" ? (
-                  <Image className="h-3 w-3 text-white" />
+              
+              {/* Overlay with info */}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => onMediaRemoved(media.objectKey)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Media type badge */}
+              <div className="absolute bottom-1 left-1 flex items-center gap-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                {media.type === 'image' ? (
+                  <Image className="h-3 w-3" />
                 ) : (
-                  <Film className="h-3 w-3 text-white" />
+                  <Video className="h-3 w-3" />
                 )}
               </div>
-
-              {/* Remove button */}
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => handleRemove(media.objectKey)}
-              >
-                <X className="h-3 w-3" />
-              </Button>
+              
+              {/* Success indicator */}
+              <div className="absolute top-1 right-1">
+                <CheckCircle2 className="h-4 w-4 text-green-500" />
+              </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* File count indicator */}
+      {uploadedMedia.length > 0 && (
+        <p className="text-xs text-muted-foreground text-center">
+          {uploadedMedia.length} / {maxFiles} file đã upload
+        </p>
       )}
     </div>
   );

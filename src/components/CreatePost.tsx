@@ -1,128 +1,259 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { DirectMediaUpload, UploadedMedia } from "@/components/posts/DirectMediaUpload";
-import { Image, Loader2, Send } from "lucide-react";
-import { toast } from "sonner";
+import { ImagePlus, X, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { DirectMediaUpload, UploadedMedia } from "./posts/DirectMediaUpload";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useDraftPost, DraftMedia } from "@/hooks/useDraftPost";
 
-interface CreatePostProps {
-  onPostCreated?: () => void;
-}
-
-export default function CreatePost({ onPostCreated }: CreatePostProps) {
-  const { user, profile } = useAuth();
+export default function CreatePost() {
   const [content, setContent] = useState("");
+  const [showMediaUpload, setShowMediaUpload] = useState(false);
   const [uploadedMedia, setUploadedMedia] = useState<UploadedMedia[]>([]);
-  const [showUpload, setShowUpload] = useState(false);
-  const [posting, setPosting] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const { toast } = useToast();
+  const { draft, hasDraft, saveDraft, clearDraft } = useDraftPost();
+
+  // Restore draft on mount
+  useEffect(() => {
+    if (hasDraft && draft && !draftRestored) {
+      setContent(draft.content);
+      
+      // Convert draft media to UploadedMedia format
+      const restoredMedia: UploadedMedia[] = draft.media.map(m => ({
+        cdnUrl: m.url,
+        objectKey: m.url, // Use URL as key for restored drafts
+        filename: m.name,
+        type: m.type,
+        file: new File([], m.name, { type: m.type === 'image' ? 'image/*' : 'video/*' }),
+      }));
+      
+      setUploadedMedia(restoredMedia);
+      
+      if (draft.media.length > 0) {
+        setShowMediaUpload(true);
+      }
+      
+      setDraftRestored(true);
+      
+      toast({
+        title: "Đã khôi phục bản nháp",
+        description: "Bài viết chưa đăng của bạn đã được khôi phục",
+      });
+    }
+  }, [hasDraft, draft, draftRestored, toast]);
 
   const handleMediaUploaded = (media: UploadedMedia) => {
-    setUploadedMedia((prev) => [...prev, media]);
+    const newMedia = [...uploadedMedia, media];
+    setUploadedMedia(newMedia);
+
+    // Auto-save draft
+    const draftMedia: DraftMedia[] = newMedia.map(m => ({
+      url: m.cdnUrl,
+      type: m.type,
+      name: m.filename,
+      size: m.file.size,
+    }));
+    saveDraft(content, draftMedia);
   };
 
   const handleMediaRemoved = (objectKey: string) => {
-    setUploadedMedia((prev) => prev.filter((m) => m.objectKey !== objectKey));
+    const newMedia = uploadedMedia.filter(m => m.objectKey !== objectKey);
+    setUploadedMedia(newMedia);
+
+    if (newMedia.length === 0) {
+      setShowMediaUpload(false);
+    }
+
+    // Auto-save draft
+    const draftMedia: DraftMedia[] = newMedia.map(m => ({
+      url: m.cdnUrl,
+      type: m.type,
+      name: m.filename,
+      size: m.file.size,
+    }));
+    saveDraft(content, draftMedia);
   };
 
-  const handleSubmit = async () => {
-    if (!user) {
-      toast.error("Vui lòng đăng nhập để đăng bài");
-      return;
-    }
+  const toggleMediaUpload = () => {
+    setShowMediaUpload(!showMediaUpload);
+  };
 
+  const handlePost = async () => {
     if (!content.trim() && uploadedMedia.length === 0) {
-      toast.error("Vui lòng nhập nội dung hoặc thêm media");
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập nội dung hoặc thêm ảnh/video",
+        variant: "destructive",
+      });
       return;
     }
 
-    setPosting(true);
+    setIsPosting(true);
 
     try {
-      const mediaData = uploadedMedia.length > 0
-        ? uploadedMedia.map((m) => ({
-            type: m.type,
-            url: m.cdnUrl,
-            thumbnail: m.thumbnailUrl, // Include thumbnail URL for videos
-          }))
-        : null;
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("Bạn cần đăng nhập để đăng bài");
+      }
 
-      const { error } = await supabase.from("posts").insert({
-        user_id: user.id,
-        content: content.trim() || null,
-        media: mediaData,
-      });
+      // Format media data for new upload system
+      const mediaData = uploadedMedia.map(m => ({
+        url: m.cdnUrl,
+        type: m.type,
+        objectKey: m.objectKey,
+        filename: m.filename
+      }));
+
+      // Insert post into database
+      const { error } = await supabase
+        .from('posts')
+        .insert({
+          user_id: user.id,
+          content: content.trim() || null,
+          media: mediaData.map(m => ({ url: m.url, type: m.type })),
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
 
+      setIsPosting(false);
       setContent("");
       setUploadedMedia([]);
-      setShowUpload(false);
-      toast.success("Đăng bài thành công!");
-      onPostCreated?.();
+      setShowMediaUpload(false);
+      clearDraft();
+      
+      toast({
+        title: "Thành công",
+        description: "Bài viết của bạn đã được đăng!",
+      });
     } catch (error: any) {
-      console.error("Error creating post:", error);
-      toast.error("Không thể đăng bài. Vui lòng thử lại.");
-    } finally {
-      setPosting(false);
+      console.error("Error posting:", error);
+      setIsPosting(false);
+      toast({
+        title: "Lỗi",
+        description: error.message || "Không thể đăng bài. Vui lòng thử lại.",
+        variant: "destructive",
+      });
     }
   };
 
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+    
+    // Auto-save draft
+    const draftMedia: DraftMedia[] = uploadedMedia.map(m => ({
+      url: m.cdnUrl,
+      type: m.type,
+      name: m.filename,
+      size: m.file.size,
+    }));
+    saveDraft(newContent, draftMedia);
+  };
+
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="flex gap-3">
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={profile?.avatar_url || ""} />
-          <AvatarFallback>
-            {profile?.username?.charAt(0).toUpperCase() || "U"}
-          </AvatarFallback>
-        </Avatar>
+    <Card className="border-primary/20 shadow-md">
+      <CardContent className="space-y-4 pt-6">
+        {/* Draft notification banner */}
+        {hasDraft && draftRestored && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 flex items-center justify-between">
+            <span className="text-sm text-yellow-800 dark:text-yellow-200">
+              📝 Bản nháp đã được khôi phục
+            </span>
+            <div className="flex gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  clearDraft();
+                  setContent("");
+                  setUploadedMedia([]);
+                  setShowMediaUpload(false);
+                  setDraftRestored(false);
+                }}
+                className="h-7 gap-1"
+              >
+                <X className="h-3 w-3" />
+                Xóa
+              </Button>
+            </div>
+          </div>
+        )}
 
-        <div className="flex-1 space-y-3">
-          <Textarea
-            placeholder="Bạn đang nghĩ gì?"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="min-h-[80px] resize-none border-0 bg-muted/50 focus-visible:ring-1"
+        <Textarea
+          placeholder="Bạn đang nghĩ gì?"
+          value={content}
+          onChange={handleContentChange}
+          className="min-h-[100px] resize-none border-muted"
+        />
+
+        {/* Media Upload Section - New Direct Upload */}
+        {showMediaUpload && (
+          <DirectMediaUpload
+            onMediaUploaded={handleMediaUploaded}
+            onMediaRemoved={handleMediaRemoved}
+            uploadedMedia={uploadedMedia}
+            maxFiles={4}
           />
+        )}
 
-          {showUpload && (
-            <DirectMediaUpload
-              onMediaUploaded={handleMediaUploaded}
-              onMediaRemoved={handleMediaRemoved}
-              uploadedMedia={uploadedMedia}
-              maxFiles={4}
-            />
-          )}
-
-          <div className="flex items-center justify-between border-t pt-3">
+        {/* Actions */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
-              variant="ghost"
+              type="button"
+              variant={showMediaUpload ? "default" : "ghost"}
               size="sm"
-              onClick={() => setShowUpload(!showUpload)}
-              className="text-muted-foreground hover:text-primary"
+              className="gap-2"
+              onClick={toggleMediaUpload}
             >
-              <Image className="h-5 w-5 mr-2" />
-              Ảnh/Video
-            </Button>
-
-            <Button
-              onClick={handleSubmit}
-              disabled={posting || (!content.trim() && uploadedMedia.length === 0)}
-              size="sm"
-            >
-              {posting ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Send className="h-4 w-4 mr-2" />
-              )}
-              Đăng bài
+              <ImagePlus className="h-4 w-4" />
+              <span className="hidden sm:inline">
+                {showMediaUpload ? "Đang chọn media" : "Ảnh/Video"}
+              </span>
             </Button>
           </div>
+          
+          <Button
+            onClick={handlePost}
+            disabled={isPosting || (!content.trim() && uploadedMedia.length === 0)}
+            className="gap-2"
+          >
+            {isPosting ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                <span>Đang đăng...</span>
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4" />
+                <span>Đăng bài</span>
+              </>
+            )}
+          </Button>
         </div>
-      </div>
-    </div>
+
+        {/* Media Count Badge */}
+        {uploadedMedia.length > 0 && !showMediaUpload && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ImagePlus className="h-4 w-4" />
+            <span>{uploadedMedia.length} file đã upload</span>
+            <button
+              type="button"
+              onClick={toggleMediaUpload}
+              className="text-primary hover:underline"
+            >
+              Xem
+            </button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
