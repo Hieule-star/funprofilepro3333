@@ -22,6 +22,7 @@ import { Link } from "react-router-dom";
 interface MediaItem {
   type: "image" | "video";
   url: string;
+  thumbnail?: string; // Thumbnail URL for videos
 }
 
 interface PostProps {
@@ -211,6 +212,7 @@ export default function Post({
               ) : (
                 <LazyVideo
                   src={item.url}
+                  poster={item.thumbnail}
                   className="w-full h-full object-cover"
                 />
               )}

@@ -40,9 +40,9 @@ export function LazyVideo({ src, poster, className }: LazyVideoProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Extract thumbnail from video when visible
+  // Extract thumbnail from video when visible (only if no poster provided)
   useEffect(() => {
-    if (!isVisible || thumbnail || isActivated) return;
+    if (!isVisible || thumbnail || isActivated || poster) return;
 
     const video = document.createElement('video');
     video.crossOrigin = 'anonymous';
@@ -84,7 +84,7 @@ export function LazyVideo({ src, poster, className }: LazyVideoProps) {
       video.removeEventListener('seeked', handleSeeked);
       video.remove();
     };
-  }, [isVisible, thumbnail, src, isActivated]);
+  }, [isVisible, thumbnail, src, isActivated, poster]);
 
   const handleActivate = useCallback(() => {
     setIsActivated(true);

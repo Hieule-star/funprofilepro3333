@@ -12,6 +12,7 @@ export interface UploadedMedia {
   filename: string;
   type: "image" | "video";
   file: File;
+  thumbnailUrl?: string; // New: thumbnail URL for videos
 }
 
 interface DirectMediaUploadProps {
@@ -53,13 +54,14 @@ export function DirectMediaUpload({
 
       try {
         const result = await upload(file);
-        if (result) {
+        if (result.success && result.cdnUrl && result.objectKey) {
           onMediaUploaded({
             cdnUrl: result.cdnUrl,
             objectKey: result.objectKey,
             filename: file.name,
             type: isImage ? "image" : "video",
             file,
+            thumbnailUrl: result.thumbnailUrl,
           });
         }
       } catch (error: any) {
