@@ -1,10 +1,11 @@
 /**
  * Media CDN URL utilities
- * Simple and clean - only uses new CDN
+ * CDN Worker: media-funprofile.ecosystem.org
+ * R2 Bucket: (configured in Cloudflare)
  */
 
-// CDN domain for media files (new CDN)
-export const MEDIA_CDN_URL = 'https://media.camly.co';
+// CDN domain for media files
+export const MEDIA_CDN_URL = 'https://media-funprofile.ecosystem.org';
 
 /**
  * Build CDN URL from storage key
