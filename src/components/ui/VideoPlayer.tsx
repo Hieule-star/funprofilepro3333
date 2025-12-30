@@ -12,10 +12,10 @@ interface VideoPlayerProps {
 }
 
 /**
- * Simple Video Player
- * - Plays video from CDN URL
- * - Shows error state with download option
- * - Warning for MOV files
+ * Video Player Component
+ * - Plays video from CDN URL directly
+ * - Shows error state with download fallback
+ * - Warning banner for MOV files
  */
 export function VideoPlayer({ src, mimeType, poster, className }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -26,11 +26,7 @@ export function VideoPlayer({ src, mimeType, poster, className }: VideoPlayerPro
 
   const handleError = useCallback((e: React.SyntheticEvent<HTMLVideoElement>) => {
     const el = e.currentTarget;
-    console.error('[VideoPlayer] Error:', {
-      src,
-      code: el.error?.code,
-      message: el.error?.message,
-    });
+    console.error('[VideoPlayer] Error:', { src, code: el.error?.code, message: el.error?.message });
     setErrorCode(el.error?.code ?? null);
     setError(true);
   }, [src]);
@@ -52,11 +48,7 @@ export function VideoPlayer({ src, mimeType, poster, className }: VideoPlayerPro
                   : "Không thể tải video. Vui lòng thử lại sau."}
             </p>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => window.open(src, "_blank")}
-          >
+          <Button variant="outline" size="sm" onClick={() => window.open(src, "_blank")}>
             <Download className="h-4 w-4 mr-1" />
             Tải xuống
           </Button>

@@ -46,7 +46,7 @@ export default function Feed() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPosts((data as any) || []);
+      setPosts((data as unknown as PostWithProfile[]) || []);
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
@@ -61,14 +61,8 @@ export default function Feed() {
       .channel('posts-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'posts'
-        },
-        () => {
-          fetchPosts();
-        }
+        { event: '*', schema: 'public', table: 'posts' },
+        () => fetchPosts()
       )
       .subscribe();
 
@@ -77,6 +71,7 @@ export default function Feed() {
     };
   }, []);
 
+  // Scroll to target post when loaded
   useEffect(() => {
     if (!loading && targetPostId) {
       setTimeout(() => {
@@ -92,10 +87,12 @@ export default function Feed() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6">
         <div className="grid gap-6 lg:grid-cols-12">
+          {/* Left Sidebar */}
           <aside className="hidden lg:col-span-3 lg:block">
             <Sidebar />
           </aside>
 
+          {/* Main Feed */}
           <main className="lg:col-span-6">
             <div className="space-y-6">
               <CreatePost />
@@ -117,7 +114,6 @@ export default function Feed() {
               ) : (
                 posts.map((post) => {
                   const username = post.profiles?.username || 'User';
-                  const avatarInitials = username.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
                   
                   return (
                     <Post
@@ -125,7 +121,7 @@ export default function Feed() {
                       postId={post.id}
                       userId={post.user_id}
                       author={username}
-                      avatar={avatarInitials}
+                      avatarUrl={post.profiles?.avatar_url}
                       content={post.content || ''}
                       timestamp={new Date(post.created_at)}
                       likes={0}
@@ -141,6 +137,7 @@ export default function Feed() {
             </div>
           </main>
 
+          {/* Right Sidebar */}
           <aside className="hidden lg:col-span-3 lg:block">
             <HonorBoard />
           </aside>

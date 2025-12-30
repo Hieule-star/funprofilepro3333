@@ -1,5 +1,5 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Heart, MessageSquare, Share2, MoreVertical } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -23,7 +23,7 @@ interface PostProps {
   postId?: string;
   userId?: string;
   author: string;
-  avatar: string;
+  avatarUrl?: string | null;
   content: string;
   timestamp: Date;
   likes: number;
@@ -38,7 +38,7 @@ export default function Post({
   postId,
   userId,
   author,
-  avatar,
+  avatarUrl,
   content,
   timestamp,
   likes: initialLikes,
@@ -56,6 +56,9 @@ export default function Post({
   const [commentsCount, setCommentsCount] = useState(comments);
   const [showComments, setShowComments] = useState(false);
   const [replyTo, setReplyTo] = useState<{ commentId: string; username: string } | null>(null);
+
+  // Get avatar initials from author name
+  const avatarInitials = author.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   useEffect(() => {
     if (postId && user) {
@@ -78,9 +81,7 @@ export default function Post({
           table: 'comments',
           filter: `post_id=eq.${postId}`
         },
-        () => {
-          fetchCommentsCount();
-        }
+        () => fetchCommentsCount()
       )
       .subscribe();
 
@@ -97,36 +98,30 @@ export default function Post({
 
   const checkIfLiked = async () => {
     if (!postId || !user) return;
-
     const { data } = await supabase
       .from("post_likes")
       .select("id")
       .eq("post_id", postId)
       .eq("user_id", user.id)
       .single();
-
     setLiked(!!data);
   };
 
   const fetchLikesCount = async () => {
     if (!postId) return;
-
     const { count } = await supabase
       .from("post_likes")
       .select("*", { count: "exact", head: true })
       .eq("post_id", postId);
-
     setLikesCount(count || 0);
   };
 
   const fetchCommentsCount = async () => {
     if (!postId) return;
-
     const { count } = await supabase
       .from("comments")
       .select("*", { count: "exact", head: true })
       .eq("post_id", postId);
-
     setCommentsCount(count || 0);
   };
 
@@ -147,17 +142,12 @@ export default function Post({
           .delete()
           .eq("post_id", postId)
           .eq("user_id", user.id);
-        
         setLiked(false);
         setLikesCount(prev => Math.max(0, prev - 1));
       } else {
         await supabase
           .from("post_likes")
-          .insert({
-            post_id: postId,
-            user_id: user.id,
-          });
-        
+          .insert({ post_id: postId, user_id: user.id });
         setLiked(true);
         setLikesCount(prev => prev + 1);
       }
@@ -171,17 +161,18 @@ export default function Post({
     }
   };
 
+  const handleProfileClick = () => {
+    if (!userId) return;
+    navigate(userId === user?.id ? '/profile' : `/user/${userId}`);
+  };
+
   const renderMedia = () => {
     if (!media || media.length === 0) return null;
 
     const gridClass =
-      media.length === 1
-        ? "grid-cols-1"
-        : media.length === 2
-        ? "grid-cols-2"
-        : media.length === 3
-        ? "grid-cols-3"
-        : "grid-cols-2";
+      media.length === 1 ? "grid-cols-1" :
+      media.length === 2 ? "grid-cols-2" :
+      media.length === 3 ? "grid-cols-3" : "grid-cols-2";
 
     return (
       <div className={`grid gap-2 ${gridClass} mt-3`}>
@@ -203,22 +194,10 @@ export default function Post({
     );
   };
 
-  const handleProfileClick = () => {
-    if (!userId) return;
-    
-    if (userId === user?.id) {
-      navigate('/profile');
-    } else {
-      navigate(`/user/${userId}`);
-    }
-  };
-
   return (
     <Card 
       id={postId ? `post-${postId}` : undefined}
-      className={`shadow-md transition-all hover:shadow-lg ${
-        autoExpandComments ? 'ring-2 ring-primary' : ''
-      }`}
+      className={`shadow-md transition-all hover:shadow-lg ${autoExpandComments ? 'ring-2 ring-primary' : ''}`}
     >
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
         <div 
@@ -226,8 +205,9 @@ export default function Post({
           onClick={handleProfileClick}
         >
           <Avatar className="h-12 w-12 border-2 border-primary/20">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={author} />}
             <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-              {avatar}
+              {avatarInitials}
             </AvatarFallback>
           </Avatar>
           <div>
@@ -241,19 +221,19 @@ export default function Post({
           <MoreVertical className="h-4 w-4" />
         </Button>
       </CardHeader>
+      
       <CardContent className="pb-3">
-        <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>
+        {content && <p className="whitespace-pre-wrap text-sm leading-relaxed">{content}</p>}
         {renderMedia()}
       </CardContent>
+      
       <CardFooter className="flex-col items-start pt-3">
         <div className="flex w-full items-center justify-between border-b pb-3">
           <div className="flex gap-1">
             <Button
               variant="ghost"
               size="sm"
-              className={`gap-2 transition-colors ${
-                liked ? "text-destructive" : "hover:text-destructive"
-              }`}
+              className={`gap-2 transition-colors ${liked ? "text-destructive" : "hover:text-destructive"}`}
               onClick={handleLike}
             >
               <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />

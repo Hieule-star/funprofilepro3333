@@ -13,7 +13,7 @@ interface LazyVideoProps {
 /**
  * Lazy Video Component
  * - Uses IntersectionObserver to lazy load video
- * - Shows placeholder until video is in viewport
+ * - Shows placeholder until video enters viewport
  */
 export function LazyVideo({ src, mimeType, poster, className }: LazyVideoProps) {
   const [isVisible, setIsVisible] = useState(false);
