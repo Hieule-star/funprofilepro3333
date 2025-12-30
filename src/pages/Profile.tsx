@@ -418,7 +418,7 @@ export default function Profile() {
                       postId={post.id}
                       userId={post.user_id}
                       author={post.profiles.username || "Người dùng"}
-                      avatar={post.profiles.username?.substring(0, 2).toUpperCase() || "U"}
+                      avatarUrl={post.profiles.avatar_url}
                       content={post.content || ""}
                       timestamp={new Date(post.created_at)}
                       likes={0}
