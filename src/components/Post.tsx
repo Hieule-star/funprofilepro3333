@@ -8,7 +8,7 @@ import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { VideoPlayer } from "@/components/ui/VideoPlayer";
+import { LazyVideo } from "@/components/ui/LazyVideo";
 import CommentList from "@/components/CommentList";
 import CommentInput from "@/components/CommentInput";
 import {
@@ -206,9 +206,10 @@ export default function Post({
                   alt=""
                   className="w-full h-full object-cover"
                   loading="lazy"
+                  decoding="async"
                 />
               ) : (
-                <VideoPlayer
+                <LazyVideo
                   src={item.url}
                   className="w-full h-full object-cover"
                 />

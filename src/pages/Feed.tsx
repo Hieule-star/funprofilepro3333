@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Sidebar from "@/components/Sidebar";
@@ -6,6 +6,7 @@ import HonorBoard from "@/components/HonorBoard";
 import CreatePost from "@/components/CreatePost";
 import Post from "@/components/Post";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
 interface PostData {
   id: string;
@@ -22,12 +23,19 @@ interface PostData {
   comments_count: number;
 }
 
+const POSTS_PER_PAGE = 10;
+
 export default function Feed() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<PostData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const fetchPosts = async () => {
+  const fetchPosts = async (offset = 0, append = false) => {
+    if (offset > 0) setLoadingMore(true);
+    
     const { data, error } = await supabase
       .from("posts")
       .select(`
@@ -41,10 +49,11 @@ export default function Feed() {
         comments (count)
       `)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .range(offset, offset + POSTS_PER_PAGE - 1);
 
     if (error) {
       console.error("Error fetching posts:", error);
+      setLoadingMore(false);
       return;
     }
 
@@ -59,9 +68,39 @@ export default function Feed() {
       comments_count: post.comments?.[0]?.count || 0,
     }));
 
-    setPosts(formattedPosts);
+    if (append) {
+      setPosts((prev) => [...prev, ...formattedPosts]);
+    } else {
+      setPosts(formattedPosts);
+    }
+    
+    setHasMore(formattedPosts.length === POSTS_PER_PAGE);
     setLoading(false);
+    setLoadingMore(false);
   };
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    fetchPosts(posts.length, true);
+  }, [loadingMore, hasMore, posts.length]);
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          loadMore();
+        }
+      },
+      { rootMargin: "500px" }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loadMore]);
 
   useEffect(() => {
     fetchPosts();
@@ -176,6 +215,13 @@ export default function Feed() {
                     media={post.media || undefined}
                   />
                 ))}
+                
+                {/* Load more trigger */}
+                <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                  {loadingMore && (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  )}
+                </div>
               </div>
             )}
           </main>
