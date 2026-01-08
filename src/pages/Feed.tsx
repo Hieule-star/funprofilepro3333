@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
-
+import { LiveSection } from "@/components/live/LiveSection";
+import { LiveProvider } from "@/contexts/LiveContext";
 interface MediaItem {
   type: "image" | "video";
   url: string;
@@ -95,6 +96,9 @@ export default function Feed() {
           {/* Main Feed */}
           <main className="lg:col-span-6">
             <div className="space-y-6">
+              <LiveProvider>
+                <LiveSection />
+              </LiveProvider>
               <CreatePost />
 
               {loading ? (

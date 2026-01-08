@@ -36,7 +36,9 @@ import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
 import AuthCallback from "./pages/AuthCallback";
 import Call from "./pages/Call";
+import Live from "./pages/Live";
 import NotFound from "./pages/NotFound";
+import { LiveProvider } from "@/contexts/LiveContext";
 
 const queryClient = new QueryClient();
 
@@ -272,6 +274,16 @@ const App = () => {
                         element={
                           <ProtectedRoute>
                             <Call />
+                          </ProtectedRoute>
+                        }
+                      />
+                     <Route
+                        path="/live/:channel"
+                        element={
+                          <ProtectedRoute>
+                            <LiveProvider>
+                              <Live />
+                            </LiveProvider>
                           </ProtectedRoute>
                         }
                       />
