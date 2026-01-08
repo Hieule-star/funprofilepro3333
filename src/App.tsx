@@ -157,8 +157,17 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
+            <Route
+              path="/live/:channel"
+              element={
+                <ProtectedRoute>
+                  <LiveProvider>
+                    <Live />
+                  </LiveProvider>
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
                         </Routes>
                           </WalletProvider>
                           </FriendRequestNotificationProvider>
